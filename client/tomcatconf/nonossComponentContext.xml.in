@@ -145,7 +145,13 @@
   <bean id="CiscoVNMC" class="com.cloud.network.element.CiscoVnmcElement">
     <property name="name" value="CiscoVNMC"/>
   </bean>
-  
+ 
+ <!--
+    Attestation service components
+  -->
+  <bean id="AttestationServerDaoImpl" class="org.apache.cloudstack.database.AttestationServerDaoImpl" />
+  <bean id="AttestationManager" class="org.apache.cloudstack.manager.AttestationManagerImpl" />
+ 
   <!--
     BigSwitch support components
   -->  

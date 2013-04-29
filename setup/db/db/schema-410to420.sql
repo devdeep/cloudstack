@@ -918,6 +918,21 @@ CREATE TABLE `cloud`.`network_asa1000v_map` (
 
 ALTER TABLE `cloud`.`network_offerings` ADD COLUMN `eip_associate_public_ip` int(1) unsigned NOT NULL DEFAULT 0 COMMENT 'true if public IP is associated with user VM creation by default when EIP service is enabled.' AFTER `elastic_ip_service`;
 
+CREATE TABLE `cloud`.`attestation_server` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `uuid` varchar(40) UNIQUE,
+  `name` varchar(128) DEFAULT NULL,
+  `url` varchar(255) NOT NULL,
+  `username` varchar(255) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `data_center_id` bigint unsigned NOT NULL COMMENT 'zone id',
+  `removed` datetime COMMENT 'date removed if not null',  
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT IGNORE INTO `cloud`.`configuration` VALUES ('Advanced', 'DEFAULT', 'attestation-server', 'attestation.enabled', 'false', 'If true, the attestation service is enabled and hosts can be checked if they are trusted or not.');
+INSERT IGNORE INTO `cloud`.`configuration` VALUES ('Advanced', 'DEFAULT', 'attestation-server', 'attestation.hosttag', 'Trusted-Host', 'The attestation service tags the host with this value if they are trusted.');
+
 -- Re-enable foreign key checking, at the end of the upgrade path
 SET foreign_key_checks = 1;			
 

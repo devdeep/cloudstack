@@ -551,6 +551,12 @@ listApis=15
 getApiLimit=15
 resetApiLimit=1
 
+#### Attestation service commands
+registerAttestationServer=1
+unregisterAttestationServer=1
+listAttestationServer=1
+registerHostWithAttestationServer=1
+
 #### Region commands
 addRegion=1
 updateRegion=1

@@ -611,6 +611,21 @@
       </dependencies>
     </profile>
     <profile>
+      <id>inteltxt</id>
+      <activation>
+        <property>
+          <name>nonoss</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.cloudstack</groupId>
+          <artifactId>cloud-plugin-inteltxt</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
       <id>srx</id>
       <activation>
         <property>
