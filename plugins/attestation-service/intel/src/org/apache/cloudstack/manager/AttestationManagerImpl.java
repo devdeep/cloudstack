@@ -64,6 +64,8 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.intel.mtwilson.ApiClient;
 import com.intel.mtwilson.KeystoreUtil;
 import com.intel.mtwilson.TrustAssertion;
+import com.intel.mtwilson.datatypes.BulkHostTrustResponse;
+import com.intel.mtwilson.datatypes.HostTrust;
 import com.intel.mtwilson.datatypes.Hostname;
 import com.intel.mtwilson.datatypes.Role;
 import com.intel.mtwilson.datatypes.TxtHostRecord;
@@ -242,7 +244,7 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
             List<AttestationServerVO> registeredServers = attestationServerDao.findAttestationServerForZone(
                     hostToRegister.getZoneId());
             if (registeredServers == null || registeredServers.size() == 0) {
-                s_logger.error("Cannot find an attestation server registered for the zone to which the host " +
+                s_logger.warn("Cannot find an attestation server registered for the zone to which the host " +
                         hostToRegister + " belongs.");
                 throw new CloudRuntimeException("Cannot find an attestation server registered for the zone to which" +
                         " the host belongs. Host " + hostToRegister.getUuid());
@@ -251,45 +253,52 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
                         hostToRegister + " belongs.");
                 throw new CloudRuntimeException("Found more than one attestation server registered for the zone to" +
                         " which the host belongs. Host " + hostToRegister.getUuid());
-            } else {
-                AttestationServerVO serverVO = registeredServers.get(0);
+            }
+
+            try {
+                AttestationServerVO serverVO = attestationServerDao.acquireInLockTable(registeredServers.get(0).getId());
                 attestationServerId = serverVO.getUuid();
                 URL server = new URL(serverVO.getUrl());
                 api = KeystoreUtil.clientForUserInDirectory(directory, serverVO.getUsername(), serverVO.getPassword(),
                         server);
+
+                if (api == null) {
+                    s_logger.error("Couldn't connect to the attestation server for registering the host.");
+                    throw new CloudRuntimeException("Couldn't connect to the attestation server for registering the host.");
+                }
+
+                TxtHostRecord txtHostRecord = new TxtHostRecord();
+                txtHostRecord.HostName = hostToRegister.getUuid();
+                txtHostRecord.IPAddress = hostToRegister.getPrivateIpAddress();
+                txtHostRecord.Port = cmd.getPort();
+
+                // configure white list for the host first.
+                if (!api.configureWhiteList(txtHostRecord)) {
+                    s_logger.error("Couldn't whitelist the host configuration with the attestation server." +
+                            " Host id: " + hostToRegister.getUuid());
+                    throw new CloudRuntimeException("Couldn't whitelist host configuration with the attestation server.");
+                }
+
+                // register the host configuration with the attestation server too.
+                if (!api.registerHost(txtHostRecord)) {
+                    s_logger.error("Couldn't register host with the attestation server. Host: " +
+                            hostToRegister.getUuid());
+                    throw new CloudRuntimeException("Couldn't register the host with the attestation server.");
+                }
+
+                // Check host trust assertions and update the tags on the host.
+                trustedHost = checkIfHostIsTrustedWithoutCert(api, hostToRegister.getUuid(), false);
+            } finally {
+                attestationServerDao.releaseFromLockTable(registeredServers.get(0).getId());
             }
 
-            if (api == null) {
-                s_logger.error("Couldn't connect to the attestation server for registering the host.");
-                throw new CloudRuntimeException("Couldn't connect to the attestation server for registering the host.");
-            }
-
-            TxtHostRecord txtHostRecord = new TxtHostRecord();
-            txtHostRecord.HostName = hostToRegister.getPrivateIpAddress();
-            txtHostRecord.IPAddress = hostToRegister.getPrivateIpAddress();
-            txtHostRecord.Port = cmd.getPort();
-
-            // configure white list for the host first.
-            if (!api.configureWhiteList(txtHostRecord)) {
-                s_logger.error("Couldn't whitelist the host configuration with the attestation server." +
-                        " Host id: " + hostToRegister.getUuid());
-                throw new CloudRuntimeException("Couldn't whitelist the host configuration with the attestation server.");
-            }
-
-            // register the host configuration with the attestation server too.
-            if (!api.registerHost(txtHostRecord)) {
-                s_logger.error("Couldn't register the host with the attestation server. Host id: " + hostToRegister.getUuid());
-                throw new CloudRuntimeException("Couldn't register the host with the attestation server.");
-            }
-
-            // Check host trust assertions and update the tags on the host.
-            trustedHost = checkIfHostIsTrusted(api, hostToRegister.getPrivateIpAddress(), false);
             updateTrustedTagOnHost(hostToRegister.getId(), trustedHost);
             registered = true;
         } catch (Exception e) {
             s_logger.error("Error whitelisting and registering the host with the attestation server." +
                     (hostToRegister != null ? (" Host id: " )+ hostToRegister.getUuid() : ""), e);
-            throw new CloudRuntimeException("Error whitelisting and registering the host with the attestation server.", e);
+            throw new CloudRuntimeException("Error whitelisting and registering the host with the attestation" +
+                    " server.", e);
         }
 
         // Generate the response.
@@ -407,28 +416,29 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
             List<AttestationServerVO> registeredServers = attestationServerDao.findAttestationServerForZone(
                     host.getDataCenterId());
             if (registeredServers == null || registeredServers.size() == 0) {
-                s_logger.warn("Cannot find an attestation server registered for the zone to which the host " +
+                s_logger.info("Cannot find an attestation server registered for the zone to which the host " +
                         host + " belongs.");
-                throw new CloudRuntimeException("Cannot find an attestation server registered for the zone to which" +
-                        " the host belongs. Host " + host.getUuid());
             } else if (registeredServers.size() > 1) {
                 s_logger.error("Found more than one attestation server registered for the zone to which the host " +
                         host + " belongs.");
                 throw new CloudRuntimeException("Found more than one attestation server registered for the zone to" +
                         " which the host belongs. Host " + host.getUuid());
-            } else {
-                AttestationServerVO serverVO = registeredServers.get(0);
+            }
+
+            try {
+                AttestationServerVO serverVO = attestationServerDao.acquireInLockTable(registeredServers.get(0).getId());
                 URL server = new URL(serverVO.getUrl());
-                api = KeystoreUtil.clientForUserInDirectory(directory, serverVO.getUsername(), serverVO.getPassword(),
-                        server);
+                api = KeystoreUtil.clientForUserInDirectory(directory, serverVO.getUsername(),
+                        serverVO.getPassword(), server);
+                if (api == null) {
+                    s_logger.warn("Couldn't connect to the attestation server for registering the host.");
+                    throw new CloudRuntimeException("Couldn't connect to the attestation server for registering the host.");
+                } else {
+                    trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getUuid(), true);
+                }
+            } finally {
+                attestationServerDao.releaseFromLockTable(registeredServers.get(0).getId());
             }
-
-            if (api == null) {
-                s_logger.warn("Couldn't connect to the attestation server for registering the host.");
-                throw new CloudRuntimeException("Couldn't connect to the attestation server for registering the host.");
-            }
-
-            trustedHost = checkIfHostIsTrusted(api, host.getPrivateIpAddress(), true);
         } catch (Exception e) {
             s_logger.warn("Error while looking at the assertion attributes of the host " + host, e);
         }
@@ -462,13 +472,39 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
                     s_logger.info("Trust assertion successful for host " + hostName);
                 }
             } else {
-                // This doesn't seem to work. Saml assertion isn't valid even for a trusted host.
-                // FIXME: Hack to verify rest of the code. The verifyTrustAssertion api is failing even though
-                // the SAML seems to be valid. 
-                if (hostName.equals("10.102.192.7")) {
-                    trustedHost = true;
-                }
                 s_logger.info("Trust assertion unsuccessful for host " + hostName);
+            }
+        } catch (Exception e) {
+            s_logger.error("Couldn't check the assertion attributes of the host " + hostName, e);
+        }
+
+        return trustedHost;
+    }
+
+    private boolean checkIfHostIsTrustedWithoutCert(ApiClient api, String hostName, boolean forceVerify) {
+        boolean trustedHost = false;
+        try {
+            // Check the host assertion attributes
+            Set<Hostname> names = new HashSet<Hostname> ();
+            names.add(new Hostname(hostName));
+            BulkHostTrustResponse trustResponse = api.getTrustForMultipleHosts(names, forceVerify);
+            if (trustResponse != null) {
+                List<HostTrust> hostTrustList = trustResponse.getHosts();
+                assert(hostTrustList.size() == 1);
+                HostTrust hostTrust = hostTrustList.get(0);
+                Integer biosStatus = hostTrust.getBiosStatus();
+                Integer vmmStatus = hostTrust.getVmmStatus();
+                if (biosStatus != null && biosStatus == 1 &&
+                        vmmStatus != null && vmmStatus == 1) {
+                    trustedHost = true;
+                } else {
+                    s_logger.info("Untrusted host , " +
+                            "Vmm Status : " + (vmmStatus == null ? "NULL, " : (vmmStatus == 1 ? "True, ":"False, ")) +
+                            "Bios Status : " + (biosStatus == null ? "NULL" : (biosStatus == 1 ? "True":"False")));
+                }
+                s_logger.trace("Host trust for host " + hostName + " : " + hostTrust.toString());
+            } else {
+                s_logger.error("The trust response returned for the host was empty");
             }
         } catch (Exception e) {
             s_logger.error("Couldn't check the assertion attributes of the host " + hostName, e);
@@ -502,6 +538,7 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
                         iter.remove();
                     }
                 }
+                hostTagsDao.persist(hostId, tags);
             }
         } catch (Exception e) {
             s_logger.error("Error while updating the tags on the host for trust assertion. Host " + hostId +

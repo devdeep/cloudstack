@@ -139,6 +139,10 @@ known_categories = {
     'addIpToNic': 'Nic',
     'removeIpFromNic': 'Nic',
     'listNics':'Nic',
+    'listAttestation':'Attestation Service',
+    'registerAttestation':'Attestation Service',
+    'unregisterAttestation':'Attestation Service',
+    'registerHostWithAttestation':'Attestation Service',
 	'AffinityGroup': 'Affinity Group',
     }
 
