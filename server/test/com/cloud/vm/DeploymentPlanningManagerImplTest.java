@@ -40,6 +40,7 @@ import com.cloud.dc.ClusterVO;
 import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.dao.ClusterDao;
 import com.cloud.dc.dao.DataCenterDao;
+import com.cloud.dc.dao.DedicatedResourceDao;
 import com.cloud.dc.dao.HostPodDao;
 import com.cloud.deploy.DataCenterDeployment;
 import com.cloud.deploy.DeployDestination;
@@ -112,6 +113,9 @@ public class DeploymentPlanningManagerImplTest {
 
     @Inject
     ClusterDao _clusterDao;
+
+    @Inject
+    DedicatedResourceDao _dedicatedDao;
 
     private static long domainId = 5L;
 
@@ -314,6 +318,11 @@ public class DeploymentPlanningManagerImplTest {
         @Bean
         public AffinityGroupVMMapDao affinityGroupVMMapDao() {
             return Mockito.mock(AffinityGroupVMMapDao.class);
+        }
+
+        @Bean
+        public DedicatedResourceDao dedicatedResourceDao() {
+            return Mockito.mock(DedicatedResourceDao.class);
         }
 
         @Bean
