@@ -141,7 +141,6 @@ public class XenServer56FP1Resource extends XenServer56Resource {
         vmr.actionsAfterCrash = Types.OnCrashBehaviour.DESTROY;
         vmr.actionsAfterShutdown = Types.OnNormalExit.DESTROY;
 
-        Map<String, String> details = vmSpec.getDetails();
         if (isDmcEnabled(conn, host) && vmSpec.isEnableDynamicallyScaleVm()) {
             //scaling is allowed
             vmr.memoryStaticMin = mem_128m; //128MB
@@ -164,6 +163,14 @@ public class XenServer56FP1Resource extends XenServer56Resource {
             vmr.VCPUsMax = (long) vmSpec.getCpus();
         } else {
             vmr.VCPUsMax = 32L;
+        }
+
+        Map<String, String> details = vmSpec.getDetails();
+        String coresPerSocket = details.get("cpu.corespersocket");
+        if (coresPerSocket != null) {
+            Map<String, String> platform = vmr.platform;
+            platform.put("cores-per-socket", coresPerSocket);
+            vmr.platform = platform;
         }
 
         vmr.VCPUsAtStartup = (long) vmSpec.getCpus();
