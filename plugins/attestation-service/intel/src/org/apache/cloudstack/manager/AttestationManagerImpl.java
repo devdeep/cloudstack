@@ -27,9 +27,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
+import javax.ejb.Local;
 
 import org.apache.cloudstack.api.command.admin.inteltxt.ListAttestationServerCmd;
 import org.apache.cloudstack.api.command.admin.inteltxt.RegisterAttestationServerCmd;
@@ -56,7 +56,7 @@ import com.cloud.api.query.vo.HostJoinVO;
 import com.cloud.configuration.dao.ConfigurationDao;
 import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.dao.DataCenterDao;
-import com.cloud.host.HostVO;
+import com.cloud.host.Host;
 import com.cloud.host.Status;
 import com.cloud.host.dao.HostTagsDao;
 import com.cloud.utils.db.DB;
@@ -71,7 +71,7 @@ import com.intel.mtwilson.datatypes.Role;
 import com.intel.mtwilson.datatypes.TxtHostRecord;
 import com.intel.mtwilson.datatypes.xml.HostTrustXmlResponse;
 
-@Local(value = { AttestationManager.class })
+@Local(value=AttestationManager.class)
 public class AttestationManagerImpl implements AttestationManager, Listener {
     public static final Logger s_logger = Logger.getLogger(AttestationManagerImpl.class);
     private String name;
@@ -393,7 +393,7 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
     }
 
     @Override
-    public void processConnect(HostVO host, StartupCommand cmd, boolean forRebalance) {
+    public void processConnect(Host host, StartupCommand cmd, boolean forRebalance) {
         if (!(cmd instanceof StartupRoutingCommand )) {
             s_logger.info("Received a process connect, not of type StartupRoutingCommand");
             return;
@@ -403,7 +403,6 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
                 ", host id : " + host.getUuid() +
                 ", hypervisor type : " + host.getHypervisorType() +
                 ", hypervisor version : " + host.getHypervisorVersion() +
-                ", state : " + host.getState() +
                 ", status : " + host.getStatus() +
                 ", type : " + host.getType());
 
