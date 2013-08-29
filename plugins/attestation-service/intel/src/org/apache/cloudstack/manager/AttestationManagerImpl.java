@@ -422,21 +422,21 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
                         host + " belongs.");
                 throw new CloudRuntimeException("Found more than one attestation server registered for the zone to" +
                         " which the host belongs. Host " + host.getUuid());
-            }
-
-            try {
-                AttestationServerVO serverVO = attestationServerDao.acquireInLockTable(registeredServers.get(0).getId());
-                URL server = new URL(serverVO.getUrl());
-                api = KeystoreUtil.clientForUserInDirectory(directory, serverVO.getUsername(),
-                        serverVO.getPassword(), server);
-                if (api == null) {
-                    s_logger.warn("Couldn't connect to the attestation server for registering the host.");
-                    throw new CloudRuntimeException("Couldn't connect to the attestation server for registering the host.");
-                } else {
-                    trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getUuid(), true);
+            } else {
+                try {
+                    AttestationServerVO serverVO = attestationServerDao.acquireInLockTable(registeredServers.get(0).getId());
+                    URL server = new URL(serverVO.getUrl());
+                    api = KeystoreUtil.clientForUserInDirectory(directory, serverVO.getUsername(),
+                            serverVO.getPassword(), server);
+                    if (api == null) {
+                        s_logger.warn("Couldn't connect to the attestation server for registering the host.");
+                        throw new CloudRuntimeException("Couldn't connect to the attestation server for registering the host.");
+                    } else {
+                        trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getUuid(), true);
+                    }
+                } finally {
+                    attestationServerDao.releaseFromLockTable(registeredServers.get(0).getId());
                 }
-            } finally {
-                attestationServerDao.releaseFromLockTable(registeredServers.get(0).getId());
             }
         } catch (Exception e) {
             s_logger.warn("Error while looking at the assertion attributes of the host " + host, e);
