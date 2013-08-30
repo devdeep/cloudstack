@@ -433,6 +433,9 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
                         throw new CloudRuntimeException("Couldn't connect to the attestation server for registering the host.");
                     } else {
                         trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getUuid(), true);
+                        if (!trustedHost) {
+                            trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getPrivateIpAddress(), true);
+                        }
                     }
                 } finally {
                     attestationServerDao.releaseFromLockTable(registeredServers.get(0).getId());
