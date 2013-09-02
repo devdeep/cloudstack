@@ -72,6 +72,19 @@
                         'Destroyed': 'off',
                         'Error': 'off'
                     }
+                },
+                istrusted: {
+                    label: 'Trusted Host',
+                    converter: function(booleanValue) {
+                        if(booleanValue == true)
+                          return "Yes";
+                        else
+                          return "No";
+                    },
+                    indicator: {
+                        'true' : 'on',
+                        'false' : 'off'
+                    }
                 }
             },
 
@@ -239,12 +252,35 @@
                         networkid: args.context.networks[0].id
                     });
                 }
+                var items = [];
 
                 $.ajax({
                     url: createURL('listVirtualMachines'),
                     data: data,
                     success: function(json) {
-                        var items = json.listvirtualmachinesresponse.virtualmachine;
+                        var instances = json.listvirtualmachinesresponse.virtualmachine;
+                        $(instances).each(function() {
+                            var host;
+
+                            $.ajax({
+                                url: createURL("listHosts&id=" + this.hostid),
+                                dataType: "json",
+                                async: false,
+                                success: function(json) {
+                                    host = json.listhostsresponse.host[0];
+                                }
+                             });
+
+                            if(host.hosttags != null) {
+                                var tags = host.hosttags.split(',');
+                                if($.inArray("Trusted-Host",tags) > -1)
+                                    this.istrusted = true;
+                                else
+                                    this.istrusted = false;
+                                } else
+                                    this.istrusted = false;
+                            items.push(this);
+                        });
                         args.response.success({
                             actionFilter: vmActionfilter,
                             data: items

@@ -6980,13 +6980,27 @@
                                         type: 'routing',
                                         listAll: true
                                     };
+                                    var items = [];
 
                                     $.ajax({
                                         url: createURL('listHosts' + searchByArgs),
                                         data: data,
                                         success: function(json) {
+                                            $(json.listhostsresponse.host).each(function() {
+                                                if(this.hosttags != null) {
+                                                  var tags = this.hosttags.split(',');
+                                                  if($.inArray("Trusted-Host",tags) > -1)
+                                                    this.istrusted = true;
+                                                  else
+                                                    this.istrusted = false;
+                                                }
+                                                else
+                                                    this.istrusted = false;
+                                                items.push(this);
+                                            });
+
                                             args.response.success({
-                                                data: json.listhostsresponse.host
+                                                data: items
                                             });
                                         },
                                         error: function(json) {
@@ -11573,6 +11587,19 @@
                                 'Disconnected': 'off',
                                 'Alert': 'off',
                                 'Error': 'off'
+                            }
+                        },
+                        istrusted: {
+                            label: 'Trusted Host',
+                            converter: function(booleanValue) {
+                                if(booleanValue == true)
+                                  return "Yes";
+                                else
+                                  return "No";
+                            },
+                            indicator: {
+                                'true' : 'on',
+                                'false' : 'off'
                             }
                         }
                     },
