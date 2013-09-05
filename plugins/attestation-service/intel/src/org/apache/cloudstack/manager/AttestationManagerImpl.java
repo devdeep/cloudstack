@@ -435,6 +435,9 @@ public class AttestationManagerImpl implements AttestationManager, Listener {
                         trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getUuid(), true);
                         if (!trustedHost) {
                             trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getPrivateIpAddress(), true);
+                            if (!trustedHost) {
+                                trustedHost = checkIfHostIsTrustedWithoutCert(api, host.getName(), true);
+                            }
                         }
                     }
                 } finally {
