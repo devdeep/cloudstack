@@ -78,8 +78,10 @@
                     converter: function(booleanValue) {
                         if(booleanValue == true)
                           return "Yes";
-                        else
+                        else if(booleanValue == false)
                           return "No";
+                        else
+                          return "";
                     },
                     indicator: {
                         'true' : 'on',
@@ -262,23 +264,25 @@
                         $(instances).each(function() {
                             var host;
 
-                            $.ajax({
-                                url: createURL("listHosts&id=" + this.hostid),
-                                dataType: "json",
-                                async: false,
-                                success: function(json) {
-                                    host = json.listhostsresponse.host[0];
-                                }
-                             });
+                            if (this.hostid != null) {
+                              $.ajax({
+                                  url: createURL("listHosts&id=" + this.hostid),
+                                  dataType: "json",
+                                  async: false,
+                                  success: function(json) {
+                                      host = json.listhostsresponse.host[0];
+                                  }
+                               });
 
-                            if(host.hosttags != null) {
-                                var tags = host.hosttags.split(',');
-                                if($.inArray("Trusted-Host",tags) > -1)
-                                    this.istrusted = true;
-                                else
-                                    this.istrusted = false;
-                                } else
-                                    this.istrusted = false;
+                              if(host.hosttags != null) {
+                                  var tags = host.hosttags.split(',');
+                                  if($.inArray("Trusted-Host",tags) > -1)
+                                      this.istrusted = true;
+                                  else
+                                      this.istrusted = false;
+                                  } else
+                                      this.istrusted = false;
+                            }
                             items.push(this);
                         });
                         args.response.success({
