@@ -22,6 +22,8 @@ public class MigrateCommand extends Command {
     String vmName;
     String destIp;
     String hostGuid;
+    String user;
+    String password;
     boolean isWindows;
     VirtualMachineTO vmTO;
 
@@ -33,6 +35,8 @@ public class MigrateCommand extends Command {
         this.destIp = destIp;
         this.isWindows = isWindows;
         this.vmTO = vmTO;
+        this.user = null;
+        this.password = null;
     }
 
     public boolean isWindows() {
@@ -57,6 +61,22 @@ public class MigrateCommand extends Command {
 
     public String getHostGuid() {
         return this.hostGuid;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    public String getUser() {
+        return this.user;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getPassword() {
+        return this.password;
     }
 
     @Override

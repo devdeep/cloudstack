@@ -23,6 +23,7 @@ using CloudStack.Plugin.WmiWrappers.ROOT.VIRTUALIZATION.V2;
 using log4net;
 using System.Globalization;
 using System.Management;
+using System.Security.Principal;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using CloudStack.Plugin.WmiWrappers.ROOT.CIMV2;
@@ -988,7 +989,26 @@ namespace HypervResource
         /// </summary>
         /// <param name="desplayName"></param>
         /// <param name="destination host"></param>
-        public void MigrateVm(string vmName, string destination)
+        /// <param name="domain"></param>
+        /// <param name="user"></param>
+        /// <param name="password"></param>
+        public void MigrateVm(string vmName, string destination, string domain, string user, string password)
+        {
+            IntPtr token = IntPtr.Zero;
+            bool isSuccess = Utils.LogonUser(user, domain, password, Utils.LOGON32_LOGON_NEW_CREDENTIALS, Utils.LOGON32_PROVIDER_DEFAULT, ref token);
+            using (WindowsImpersonationContext remoteIdentity = new WindowsIdentity(token).Impersonate())
+            {
+                MigrateVm(vmName, destination);
+                remoteIdentity.Undo();
+            }
+        }
+
+        /// <summary>
+        /// Migrates a vm to the given destination host
+        /// </summary>
+        /// <param name="desplayName"></param>
+        /// <param name="destination host"></param>
+        private void MigrateVm(string vmName, string destination)
         {
             ComputerSystem vm = GetComputerSystem(vmName);
             VirtualSystemMigrationSettingData migrationSettingData = VirtualSystemMigrationSettingData.CreateInstance();

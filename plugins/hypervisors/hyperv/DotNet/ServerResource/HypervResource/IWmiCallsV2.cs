@@ -39,7 +39,7 @@ namespace HypervResource
         ComputerSystem DeployVirtualMachine(dynamic jsonObj, string systemVmIso);
         void DestroyVm(dynamic jsonObj);
         void DestroyVm(string displayName);
-        void MigrateVm(string vmName, string destination);
+        void MigrateVm(string vmName, string destination, string domain, string user, string password);
         void DetachDisk(string displayName, string diskFileName);
         ComputerSystem GetComputerSystem(string displayName);
         string GetDefaultDataRoot();

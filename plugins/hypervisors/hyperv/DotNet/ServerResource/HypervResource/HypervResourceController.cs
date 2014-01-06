@@ -1840,9 +1840,13 @@ namespace HypervResource
 
                 try
                 {
+                    string domain = null;
+                    string user = null;
                     string vm = (string)cmd.vmName;
                     string destination = (string)cmd.destIp;
-                    wmiCallsV2.MigrateVm(vm, destination);
+                    string password = (string)cmd.password;
+                    Utils.GetDomainAndUser((string)cmd.user, out domain, out user);
+                    wmiCallsV2.MigrateVm(vm, destination, domain, user, password);
                     result = true;
                 }
                 catch (Exception sysEx)

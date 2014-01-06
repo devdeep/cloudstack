@@ -164,10 +164,18 @@ namespace HypervResource
             capacity = totalNumberOfBytes > 0 ? (long)totalNumberOfBytes : 0;
         }
 
+        // Gets the domain and user from string of type domain\username
+        public static void GetDomainAndUser(string domainUser, out string domain, out string user)
+        {
+            int stop = domainUser.IndexOf("\\");
+            domain = (stop > -1) ? domainUser.Substring(0, stop) : null;
+            user = (stop > -1) ? domainUser.Substring(stop + 1, domainUser.Length - stop - 1) : null;
+        }
+
         // from http://stackoverflow.com/a/2541569/939250
         #region imports
         [DllImport("advapi32.dll", SetLastError = true)]
-        private static extern bool LogonUser(string lpszUsername, string lpszDomain, string lpszPassword, int dwLogonType, int dwLogonProvider, ref IntPtr phToken);
+        public static extern bool LogonUser(string lpszUsername, string lpszDomain, string lpszPassword, int dwLogonType, int dwLogonProvider, ref IntPtr phToken);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern bool CloseHandle(IntPtr handle);
@@ -191,15 +199,15 @@ namespace HypervResource
 
         #region consts
         // logon types 
-        const int LOGON32_LOGON_INTERACTIVE = 2;
-        const int LOGON32_LOGON_NETWORK = 3;
-        const int LOGON32_LOGON_NEW_CREDENTIALS = 9;
+        public const int LOGON32_LOGON_INTERACTIVE = 2;
+        public const int LOGON32_LOGON_NETWORK = 3;
+        public const int LOGON32_LOGON_NEW_CREDENTIALS = 9;
 
         // logon providers 
-        const int LOGON32_PROVIDER_DEFAULT = 0;
-        const int LOGON32_PROVIDER_WINNT50 = 3;
-        const int LOGON32_PROVIDER_WINNT40 = 2;
-        const int LOGON32_PROVIDER_WINNT35 = 1;
+        public const int LOGON32_PROVIDER_DEFAULT = 0;
+        public const int LOGON32_PROVIDER_WINNT50 = 3;
+        public const int LOGON32_PROVIDER_WINNT40 = 2;
+        public const int LOGON32_PROVIDER_WINNT35 = 1;
 
         const int RESOURCE_CONNECTED = 0x00000001;
         const int RESOURCE_GLOBALNET = 0x00000002;

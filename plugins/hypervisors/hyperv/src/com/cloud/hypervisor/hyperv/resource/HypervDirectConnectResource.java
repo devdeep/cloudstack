@@ -54,6 +54,7 @@ import com.cloud.agent.api.Command;
 import com.cloud.agent.api.GetDomRVersionAnswer;
 import com.cloud.agent.api.GetDomRVersionCmd;
 import com.cloud.agent.api.HostVmStateReportEntry;
+import com.cloud.agent.api.MigrateCommand;
 import com.cloud.agent.api.NetworkUsageAnswer;
 import com.cloud.agent.api.NetworkUsageCommand;
 import com.cloud.agent.api.PingCommand;
@@ -448,6 +449,9 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
                         s_logger.error("Hyperv manager isn't available. Couldn't check and copy the systemvm iso.");
                     }
                 }
+            } else if (clazz == MigrateCommand.class) {
+                ((MigrateCommand)cmd).setUser(_username);
+                ((MigrateCommand)cmd).setPassword(_password);
             }
 
             // Send the cmd to hyperv agent.
