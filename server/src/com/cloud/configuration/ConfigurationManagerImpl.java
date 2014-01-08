@@ -36,8 +36,6 @@ import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
-import org.apache.log4j.Logger;
-
 import org.apache.cloudstack.acl.SecurityChecker;
 import org.apache.cloudstack.affinity.AffinityGroup;
 import org.apache.cloudstack.affinity.AffinityGroupService;
@@ -85,6 +83,7 @@ import org.apache.cloudstack.region.dao.RegionDao;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolDetailsDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
+import org.apache.log4j.Logger;
 
 import com.cloud.alert.AlertManager;
 import com.cloud.api.ApiDBUtils;
@@ -1228,6 +1227,16 @@ ConfigurationManagerImpl extends ManagerBase implements ConfigurationManager, Co
     @Override
     public Pod createPod(long zoneId, String name, String startIp, String endIp, String gateway, String netmask,
             String allocationState) {
+
+        // Check if the gateway is a valid IP address
+        if (!NetUtils.isValidIp(gateway)) {
+            throw new InvalidParameterValueException("The gateway is invalid");
+        }
+
+        if (!NetUtils.isValidNetmask(netmask)) {
+            throw new InvalidParameterValueException("The netmask is invalid");
+        }
+
         String cidr = NetUtils.ipAndNetMaskToCidr(gateway, netmask);
         Long userId = CallContext.current().getCallingUserId();
 
@@ -1749,7 +1758,7 @@ ConfigurationManagerImpl extends ManagerBase implements ConfigurationManager, Co
                                 PhysicalNetworkTrafficTypeVO mgmtTraffic = _trafficTypeDao.findBy(mgmtPhyNetwork.getId(),
                                         TrafficType.Management);
                                 _networkSvc.addTrafficTypeToPhysicalNetwork(mgmtPhyNetwork.getId(),
-                                        TrafficType.Storage.toString(), mgmtTraffic.getXenNetworkLabel(),
+                                        TrafficType.Storage.toString(), "vlan", mgmtTraffic.getXenNetworkLabel(),
                                         mgmtTraffic.getKvmNetworkLabel(), mgmtTraffic.getVmwareNetworkLabel(),
                                         mgmtTraffic.getSimulatorNetworkLabel(), mgmtTraffic.getVlan(), mgmtTraffic.getHypervNetworkLabel());
                                 s_logger.info("No storage traffic type was specified by admin, create default storage traffic on physical network "

@@ -331,7 +331,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
 
     // TODO
     static final ConfigKey<Boolean> VmJobEnabled = new ConfigKey<Boolean>("Advanced",
-            Boolean.class, "vm.job.enabled", "true",
+            Boolean.class, "vm.job.enabled", "false",
             "True to enable new VM sync model. false to use the old way", false);
     static final ConfigKey<Long> VmJobCheckInterval = new ConfigKey<Long>("Advanced",
             Long.class, "vm.job.check.interval", "3000",
@@ -1543,12 +1543,11 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                     liveMigrateVolume = capabilities.isStorageMotionSupported();
                 }
             }
-        }
 
-        // If the disk is not attached to any VM then it can be moved. Otherwise, it needs to be attached to a vm
-        // running on a hypervisor that supports storage motion so that it be be migrated.
-        if (instanceId != null && !liveMigrateVolume) {
-            throw new InvalidParameterValueException("Volume needs to be detached from VM");
+            // If vm is running, and hypervisor doesn't support live migration, then return error
+            if (!liveMigrateVolume) {
+                throw new InvalidParameterValueException("Volume needs to be detached from VM");
+            }
         }
 
         if (liveMigrateVolume && !cmd.isLiveMigrate()) {
