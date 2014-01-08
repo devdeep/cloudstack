@@ -125,6 +125,8 @@ Requires: jakarta-commons-daemon
 Requires: jakarta-commons-daemon-jsvc
 Requires: perl
 Requires: libvirt-python
+Requires: qemu-img
+Requires: qemu-kvm
 Provides: cloud-agent
 Obsoletes: cloud-agent < 4.1.0
 Obsoletes: cloud-agent-libs < 4.1.0
@@ -211,7 +213,8 @@ python -m py_compile ${RPM_BUILD_ROOT}%{python_sitearch}/cloud_utils.py
 python -m compileall ${RPM_BUILD_ROOT}%{python_sitearch}/cloudutils
 cp build/gitrev.txt ${RPM_BUILD_ROOT}%{_datadir}/%{name}-common/scripts
 cp packaging/centos63/cloudstack-sccs ${RPM_BUILD_ROOT}/usr/bin
- 
+mkdir -p ${RPM_BUILD_ROOT}%{_datadir}/%{name}-common/scripts/vm/hypervisor/xenserver
+cp scripts/util/vhd-util ${RPM_BUILD_ROOT}%{_datadir}/%{name}-common/scripts/vm/hypervisor/xenserver/vhd-util
 mkdir -p ${RPM_BUILD_ROOT}%{_datadir}/%{name}-common/scripts/network/cisco
 cp -r plugins/network-elements/cisco-vnmc/scripts/network/cisco/* ${RPM_BUILD_ROOT}%{_datadir}/%{name}-common/scripts/network/cisco
 
@@ -223,6 +226,8 @@ mkdir -p ${RPM_BUILD_ROOT}%{_localstatedir}/log/%{name}/management
 mkdir -p ${RPM_BUILD_ROOT}%{_localstatedir}/log/%{name}/awsapi
 mkdir -p ${RPM_BUILD_ROOT}%{_sysconfdir}/%{name}/management
 mkdir -p ${RPM_BUILD_ROOT}%{_localstatedir}/log/%{name}-management
+mkdir -p ${RPM_BUILD_ROOT}%{_datadir}/%{name}-management/util
+cp -r tools/bugtool/* ${RPM_BUILD_ROOT}%{_datadir}/%{name}-management/util
 
 # Specific for tomcat
 mkdir -p ${RPM_BUILD_ROOT}%{_sysconfdir}/%{name}/management/Catalina/localhost/client
@@ -545,6 +550,7 @@ fi
 %config(noreplace) %{_sysconfdir}/%{name}/management/cloud-bridge.properties
 %config(noreplace) %{_sysconfdir}/%{name}/management/commons-logging.properties
 %config(noreplace) %{_sysconfdir}/%{name}/management/ec2-service.properties
+%attr(0755,root,root) %{_datadir}/%{name}-management/util
 %attr(0755,root,root) %{_initrddir}/%{name}-management
 %attr(0755,root,root) %{_bindir}/%{name}-setup-management
 %attr(0755,root,root) %{_bindir}/%{name}-update-xenserver-licenses
@@ -598,6 +604,7 @@ fi
 %attr(0644,root,root) %{python_sitearch}/cloud_utils.pyc
 %attr(0644,root,root) %{python_sitearch}/cloudutils/*
 %attr(0644, root, root) %{_datadir}/%{name}-common/lib/jasypt-1.9.0.jar
+%attr(0644, root, root) %{_datadir}/%{name}-common/scripts/vm/hypervisor/xenserver/vhd-util
 %{_defaultdocdir}/%{name}-common-%{version}/LICENSE
 %{_defaultdocdir}/%{name}-common-%{version}/NOTICE
 
