@@ -612,12 +612,9 @@ INSERT INTO `cloud`.`configuration`(category, instance, component, name, value, 
 CREATE TABLE `cloud`.`ldap_configuration` (
   `id` bigint unsigned NOT NULL auto_increment COMMENT 'id',
   `hostname` varchar(255) NOT NULL COMMENT 'the hostname of the ldap server',
-  `port` varchar(255) COMMENT 'port that the ldap server is listening on',
+  `port` int(10) COMMENT 'port that the ldap server is listening on',
   PRIMARY KEY  (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-INSERT INTO `cloud`.`ldap_configuration`(hostname) SELECT conf.value FROM `cloud`.`configuration` conf WHERE conf.name='ldap.hostname' ;
-UPDATE `cloud`.`ldap_configuration` SET port=(SELECT conf.value FROM `cloud`.`configuration` conf WHERE conf.name='ldap.port') WHERE hostname = (SELECT conf.value FROM `cloud` .`configuration` conf WHERE conf.name='ldap.hostname');
 
 UPDATE `cloud`.`volumes` SET display_volume=1 where id>0;
 
