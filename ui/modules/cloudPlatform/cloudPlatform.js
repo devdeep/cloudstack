@@ -2,7 +2,7 @@
   cloudStack.modules.cloudPlatform = function(module) {
     // Only these languages will show in login lang selection
     var supportedLanguages = [
-      'en', 'en-US', 'ja', 'zh_CN'
+      'en', 'en-US', 'ja', 'ja_JP', 'zh_CN'
     ];
 
     var replace = function(str) {
