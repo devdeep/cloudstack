@@ -25,6 +25,7 @@
     <Compile Include="CredentialsDlg.wxs" />
     <Compile Include="CertificateDlg.wxs" />
     <Compile Include="CSUI_FeatureTree.wxs" />
+	<Compile Include="UpgradeDowngradeDlg.wxs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="AWSSDK">
@@ -81,6 +82,10 @@
     <ProjectReference Include="..\..\ServerResource\WmiWrappers\WmiWrappers.csproj">
       <Project>{db824727-bdc3-437c-a364-7a811d8a160f}</Project>
       <Name>WmiWrappers</Name>
+    </ProjectReference>
+	<ProjectReference Include="..\ACS\ACS.csproj">
+      <Project>{9acc7028-43a0-4e8f-a246-fb8977003d1f}</Project>
+      <Name>ACS</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

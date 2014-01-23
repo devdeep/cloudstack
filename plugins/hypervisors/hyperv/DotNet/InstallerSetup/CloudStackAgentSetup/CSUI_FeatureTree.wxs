@@ -15,8 +15,12 @@
       <DialogRef Id="CredentialsDlg" />
       <DialogRef Id="CertificateDlg"/>
 
+      <Publish Dialog="WelcomeDlg" Control="Next" Property="CSUPDOWNGRADE" Value="Upgrade">PREVIOUSVERSIONSINSTALLED AND NOT NEWERVERSIONSINSTALLED AND NOT SAMEVERSIONSINSTALLED</Publish>      
+      <Publish Dialog="WelcomeDlg" Control="Next" Property="CSUPDOWNGRADE"  Value="Downgrade">NOT PREVIOUSVERSIONSINSTALLED AND NEWERVERSIONSINSTALLED AND NOT SAMEVERSIONSINSTALLED</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Property="CSUPDOWNGRADE"  Value="Update">NOT PREVIOUSVERSIONSINSTALLED AND NOT NEWERVERSIONSINSTALLED AND SAMEVERSIONSINSTALLED</Publish>
+      
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
-      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">NOT Installed AND NOT PREVIOUSVERSIONSINSTALLED AND NOT NEWERVERSIONSINSTALLED AND NOT SAMEVERSIONSINSTALLED</Publish>
       <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
       <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg">LicenseAccepted = "1"</Publish>
       <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1">Installed</Publish>
@@ -26,7 +30,12 @@
       <Publish Dialog="CredentialsDlg" Control="Next" Event="NewDialog" Value="CertificateDlg">1</Publish>
       <Publish Dialog="CertificateDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="CertificateDlg" Control="Back" Event="NewDialog" Value="CredentialsDlg">1</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Install" Event="DoAction" Value="InstallCertificate">INSTALL_CERTIFICATE and NOT Installed</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Install" Event="DoAction" Value="InstallCertificate">INSTALL_CERTIFICATE and NOT Installed and NOT (OLDERFOUND or NEWERFOUND or SAMEFOUND)</Publish>
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="UpgradeDowngradeDlg">PREVIOUSVERSIONSINSTALLED OR NEWERVERSIONSINSTALLED OR SAMEVERSIONSINSTALLED</Publish>
+      <Publish Dialog="UpgradeDowngradeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg"/>
+          
+      
 
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CertificateDlg" Order="1">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed</Publish>

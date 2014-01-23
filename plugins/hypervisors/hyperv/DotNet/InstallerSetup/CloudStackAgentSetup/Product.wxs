@@ -1,14 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:fire="http://schemas.microsoft.com/wix/FirewallExtension" xmlns:iis='http://schemas.microsoft.com/wix/IIsExtension' xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-  <?define ProductName = "CloudStack Hyper-V Agent"?>
-  <?define ProductCode = "*"?>
-  <?define UpgradeCode = "48dc066c-97cc-4512-8fa3-52bbe195e077"?>
-  <?define RTMProductVersion = "1.0.0.0"?>
-  <?define ProductVersion = "1.0.0.0"?>
-
+  <?include Version.wxi ?>
   <Product Id="$(var.ProductCode)" Name="$(var.ProductName)" Language="1033" Version="$(var.ProductVersion)" Manufacturer="Citrix" UpgradeCode="$(var.UpgradeCode)">
-    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+    <Package Id="*" InstallerVersion="200" Compressed="yes" InstallScope="perMachine" InstallPrivileges="elevated"/>
+    <Property Id="MSIUSEREALADMINDETECTION" Value="1" />
     <Media Id="1" Cabinet="Cab1.cab" EmbedCab="yes" />
+
+    <Property Id="PREVIOUSVERSIONSINSTALLED" Secure="yes" />
+    <Property Id="NEWERVERSIONSINSTALLED" Secure="yes" />
+    <Property Id="SAMEVERSIONSINSTALLED" Secure="yes" />
+    <Upgrade Id="$(var.UpgradeCode)">
+      <UpgradeVersion Minimum="1.0.0.0" Maximum="$(var.ProductVersion)"
+                      Property="PREVIOUSVERSIONSINSTALLED"
+                      IncludeMinimum="yes" IncludeMaximum="no" />
+      <UpgradeVersion Minimum="$(var.ProductVersion)" Maximum="99.0.0.0"
+                      Property="NEWERVERSIONSINSTALLED"
+                      IncludeMinimum="yes" IncludeMaximum="yes" />
+      <UpgradeVersion Minimum="$(var.ProductVersion)" Maximum="$(var.ProductVersion)"
+                      Property="SAMEVERSIONSINSTALLED"
+                      IncludeMinimum="yes" IncludeMaximum="yes" />
+    </Upgrade>
+
+    <Property Id="CSUPDOWNGRADE" Value="Update"/>
+
+    <InstallExecuteSequence>
+      <RemoveExistingProducts Before="InstallInitialize" />
+    </InstallExecuteSequence>
 
     <Feature Id="ProductFeature" Title="Apache CloudStack Hyper-V Agent" Level="1" AllowAdvertise='no' Absent='disallow' Description="This component will help the CloudStack management server to communicate and manage the Hyper-V host.">
       <ComponentGroupRef Id="ProductComponents" />
@@ -21,7 +38,7 @@
   </Product>
   <Fragment>
     <Binary Id="ACS.CA.dll" SourceFile="..\ACS\bin\Debug\ACS.CA.dll" />
-    <CustomAction Id="InstallCertificate" Return="check" Execute="immediate" BinaryKey="ACS.CA.dll" DllEntry="InstallCertificate" />
+    <CustomAction Id="InstallCertificate" Return="check" Execute="immediate" BinaryKey="ACS.CA.dll" DllEntry="InstallCertificate"/>
   </Fragment>
 
   <Fragment>
