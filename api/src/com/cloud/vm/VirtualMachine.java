@@ -37,6 +37,7 @@ public interface VirtualMachine extends RunningOn, ControlledEntity, Identity, I
 	    PowerUnknown,
 	    PowerOn,
 	    PowerOff,
+        PowerReportMissing
     }
 
     public enum State {
