@@ -45,9 +45,6 @@ import javax.ejb.Local;
 import javax.naming.ConfigurationException;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
-import org.apache.cloudstack.storage.to.TemplateObjectTO;
-import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 import org.apache.xmlrpc.XmlRpcException;
@@ -55,6 +52,46 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
+
+import com.google.gson.Gson;
+import com.trilead.ssh2.SCPClient;
+import com.xensource.xenapi.Bond;
+import com.xensource.xenapi.Connection;
+import com.xensource.xenapi.Console;
+import com.xensource.xenapi.Host;
+import com.xensource.xenapi.HostCpu;
+import com.xensource.xenapi.HostMetrics;
+import com.xensource.xenapi.Network;
+import com.xensource.xenapi.PBD;
+import com.xensource.xenapi.PIF;
+import com.xensource.xenapi.PIF.Record;
+import com.xensource.xenapi.Pool;
+import com.xensource.xenapi.SR;
+import com.xensource.xenapi.Session;
+import com.xensource.xenapi.Task;
+import com.xensource.xenapi.Types;
+import com.xensource.xenapi.Types.BadAsyncResult;
+import com.xensource.xenapi.Types.BadServerResponse;
+import com.xensource.xenapi.Types.ConsoleProtocol;
+import com.xensource.xenapi.Types.IpConfigurationMode;
+import com.xensource.xenapi.Types.OperationNotAllowed;
+import com.xensource.xenapi.Types.SrFull;
+import com.xensource.xenapi.Types.VbdType;
+import com.xensource.xenapi.Types.VmBadPowerState;
+import com.xensource.xenapi.Types.VmPowerState;
+import com.xensource.xenapi.Types.XenAPIException;
+import com.xensource.xenapi.VBD;
+import com.xensource.xenapi.VBDMetrics;
+import com.xensource.xenapi.VDI;
+import com.xensource.xenapi.VIF;
+import com.xensource.xenapi.VLAN;
+import com.xensource.xenapi.VM;
+import com.xensource.xenapi.VMGuestMetrics;
+import com.xensource.xenapi.XenAPIObject;
+
+import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
+import org.apache.cloudstack.storage.to.TemplateObjectTO;
+import org.apache.cloudstack.storage.to.VolumeObjectTO;
 
 import com.cloud.agent.IAgentControl;
 import com.cloud.agent.api.Answer;
@@ -245,53 +282,18 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.PowerState;
 import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.snapshot.VMSnapshot;
-import com.google.gson.Gson;
-import com.trilead.ssh2.SCPClient;
-import com.xensource.xenapi.Bond;
-import com.xensource.xenapi.Connection;
-import com.xensource.xenapi.Console;
-import com.xensource.xenapi.Host;
-import com.xensource.xenapi.HostCpu;
-import com.xensource.xenapi.HostMetrics;
-import com.xensource.xenapi.Network;
-import com.xensource.xenapi.PBD;
-import com.xensource.xenapi.PIF;
-import com.xensource.xenapi.PIF.Record;
-import com.xensource.xenapi.Pool;
-import com.xensource.xenapi.SR;
-import com.xensource.xenapi.Session;
-import com.xensource.xenapi.Task;
-import com.xensource.xenapi.Types;
-import com.xensource.xenapi.Types.BadAsyncResult;
-import com.xensource.xenapi.Types.BadServerResponse;
-import com.xensource.xenapi.Types.ConsoleProtocol;
-import com.xensource.xenapi.Types.IpConfigurationMode;
-import com.xensource.xenapi.Types.OperationNotAllowed;
-import com.xensource.xenapi.Types.SrFull;
-import com.xensource.xenapi.Types.VbdType;
-import com.xensource.xenapi.Types.VmBadPowerState;
-import com.xensource.xenapi.Types.VmPowerState;
-import com.xensource.xenapi.Types.XenAPIException;
-import com.xensource.xenapi.VBD;
-import com.xensource.xenapi.VBDMetrics;
-import com.xensource.xenapi.VDI;
-import com.xensource.xenapi.VIF;
-import com.xensource.xenapi.VLAN;
-import com.xensource.xenapi.VM;
-import com.xensource.xenapi.VMGuestMetrics;
-import com.xensource.xenapi.XenAPIObject;
 
 /**
  * CitrixResourceBase encapsulates the calls to the XenServer Xapi process
  * to perform the required functionalities for CloudStack.
- * 
+ *
  * ==============>  READ THIS  <==============
  * Because the XenServer objects can expire when the session expires, we cannot
  * keep any of the actual XenServer objects in this class.  The only
  * thing that is constant is the UUID of the XenServer objects but not the
  * objects themselves!  This is very important before you do any changes in
  * this code here.
- * 
+ *
  */
 @Local(value = ServerResource.class)
 public abstract class CitrixResourceBase implements ServerResource, HypervisorResource {
@@ -2985,6 +2987,9 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     }
 
     protected HashMap<String, HostVmStateReportEntry> getHostVmStateReport(Connection conn) {
+
+        // TODO : new VM sync model does not require a cluster-scope report, we need to optimize
+        // the report accordingly
         final HashMap<String, HostVmStateReportEntry> vmStates = new HashMap<String, HostVmStateReportEntry>();
         Map<VM, VM.Record>  vm_map = null;
         for (int i = 0; i < 2; i++) {
@@ -3023,10 +3028,13 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                 } catch (XmlRpcException e) {
                     s_logger.error("Failed to get host uuid for host " + host.toWireString(), e);
                 }
-                vmStates.put(
-                	record.nameLabel,
-                	new HostVmStateReportEntry(convertPowerState(ps), host_uuid, xstoolsversion)
-                );
+
+                if (host_uuid.equalsIgnoreCase(_host.uuid)) {
+                    vmStates.put(
+                            record.nameLabel,
+                            new HostVmStateReportEntry(convertPowerState(ps), host_uuid, xstoolsversion)
+                            );
+                }
             }
         }
 
@@ -4948,7 +4956,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         cmd.setHypervisorType(HypervisorType.XenServer);
         cmd.setCluster(_cluster);
         cmd.setPoolSync(false);
-        cmd.setHostVmStateReport(this.getHostVmStateReport(conn));
+        cmd.setHostVmStateReport(getHostVmStateReport(conn));
 
         Pool pool;
         try {
