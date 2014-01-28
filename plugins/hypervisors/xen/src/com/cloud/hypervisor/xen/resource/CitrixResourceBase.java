@@ -7592,6 +7592,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
         Connection conn = getConnection();
         String routerIp = cmd.getAccessDetail(NetworkElementCommand.ROUTER_IP);
+        String disable =  cmd.getAccessDetail(NetworkElementCommand.ROUTER_MONITORING_DISABLE);
 
         if (routerIp == null) {
             return new Answer(cmd);
@@ -7599,6 +7600,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
         String args = "monitor_service.sh " + routerIp;
         args += " -c " + config;
+        if (disable != null) {
+            args += " -d ";
+        }
+
 
         String result = callHostPlugin(conn, "vmops", "routerProxy", "args", args);
         if (result == null || result.isEmpty()) {
