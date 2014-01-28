@@ -432,6 +432,28 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     }
 
     protected boolean pingXenServer() {
+        Session slaveSession = null;
+        Connection slaveConn = null;
+        try {
+            URL slaveUrl = null;
+            slaveUrl = _connPool.getURL(_host.ip);
+            slaveConn = new Connection(slaveUrl, 10);
+            slaveSession = _connPool.slaveLocalLoginWithPassword(slaveConn, _username, _password);
+            return true;
+        } catch (Exception e) {
+        } finally {
+            if( slaveSession != null ){
+                try{
+                    Session.localLogout(slaveConn);
+                } catch (Exception e) {
+                }
+                slaveConn.dispose();
+            }
+        }
+        return false;
+    }
+
+    protected boolean pingXAPI() {
         Connection conn = getConnection();
         try {
             callHostPlugin(conn, "echo", "main");
@@ -1849,12 +1871,24 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     }
 
     private boolean doPingTest(Connection conn, final String computingHostIp) {
-        String args = "-h " + computingHostIp;
-        String result = callHostPlugin(conn, "vmops", "pingtest", "args", args);
-        if (result == null || result.isEmpty()) {
+        com.trilead.ssh2.Connection sshConnection = new com.trilead.ssh2.Connection(_host.ip, 22);
+        try {
+            sshConnection.connect(null, 60000, 60000);
+            if (!sshConnection.authenticateWithPassword(_username, _password.peek())) {
+                throw new CloudRuntimeException("Unable to authenticate");
+            }
+
+            com.trilead.ssh2.Session session = sshConnection.openSession();
+
+            String cmd = "ping -c 2 " + computingHostIp;
+            if (!SSHCmdHelper.sshExecuteCmd(sshConnection, cmd)) {
+                throw new CloudRuntimeException("Cannot ping host " + computingHostIp + " from host " + _host.ip);
+            }
+            return true;
+        } catch (Exception e) {
+            s_logger.warn("Catch exception " + e.toString(), e);
             return false;
         }
-        return true;
     }
 
     protected CheckOnHostAnswer execute(CheckOnHostCommand cmd) {
@@ -4686,9 +4720,9 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     @Override
     public PingCommand getCurrentStatus(long id) {
         try {
-            if (!pingXenServer()) {
+            if (!pingXAPI()) {
                 Thread.sleep(1000);
-                if (!pingXenServer()) {
+                if (!pingXAPI()) {
                     s_logger.warn(" can not ping xenserver " + _host.uuid);
                     return null;
                 }
