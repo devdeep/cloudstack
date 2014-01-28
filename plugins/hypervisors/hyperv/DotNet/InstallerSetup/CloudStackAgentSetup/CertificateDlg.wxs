@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Fragment>    
-    <Property Id="INSTALL_CERTIFICATE" Value="True"/>    
+  <Fragment>
     <UI>      
       <Dialog Id="CertificateDlg" Width="370" Height="270" Title="!(loc.ServiceDlg_Header)">
         <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)"/>

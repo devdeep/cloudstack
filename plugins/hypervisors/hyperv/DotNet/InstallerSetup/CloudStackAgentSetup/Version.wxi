@@ -3,7 +3,7 @@
   <?define ProductName = "CloudStack Hyper-V Agent"?>
   <?define ProductCode = "*"?>
   <?define UpgradeCode = "48dc066c-97cc-4512-8fa3-52bbe195e077"?>
-  <?define ProductVersion = "1.0.2.0"?>
+  <?define ProductVersion = "1.0.0.0"?>
   <?define PackageCode = "*"?>  
 </Include> 
 
