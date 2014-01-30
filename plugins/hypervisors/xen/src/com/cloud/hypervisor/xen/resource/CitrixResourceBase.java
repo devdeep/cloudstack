@@ -1878,8 +1878,6 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                 throw new CloudRuntimeException("Unable to authenticate");
             }
 
-            com.trilead.ssh2.Session session = sshConnection.openSession();
-
             String cmd = "ping -c 2 " + computingHostIp;
             if (!SSHCmdHelper.sshExecuteCmd(sshConnection, cmd)) {
                 throw new CloudRuntimeException("Cannot ping host " + computingHostIp + " from host " + _host.ip);

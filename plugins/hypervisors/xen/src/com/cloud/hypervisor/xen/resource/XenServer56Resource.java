@@ -36,6 +36,7 @@ import com.cloud.agent.api.StartupCommand;
 import com.cloud.resource.ServerResource;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.script.Script;
+import com.cloud.utils.ssh.SSHCmdHelper;
 import com.xensource.xenapi.Connection;
 import com.xensource.xenapi.Host;
 import com.xensource.xenapi.Network;
@@ -281,25 +282,25 @@ public class XenServer56Resource extends CitrixResourceBase {
     }
 
     @Override
-    protected CheckOnHostAnswer execute(CheckOnHostCommand cmd) {
+    protected CheckOnHostAnswer execute(CheckOnHostCommand cmd) {  	
+        com.trilead.ssh2.Connection sshConnection = new com.trilead.ssh2.Connection(_host.ip, 22);
         try {
-            Connection conn = getConnection();
-            String result = callHostPluginPremium(conn, "check_heartbeat", "host", cmd.getHost().getGuid(), "interval",
-                    Integer.toString(_heartbeatInterval * 2));
-            if (result == null) {
-                return new CheckOnHostAnswer(cmd, "Unable to call plugin");
+            sshConnection.connect(null, 60000, 60000);
+            if (!sshConnection.authenticateWithPassword(_username, _password.peek())) {
+                throw new CloudRuntimeException("Unable to authenticate");
             }
-            if (result.contains("> DEAD <")) {
+
+            String shcmd = "/opt/cloud/bin/check_heartbeat.sh " + cmd.getHost().getGuid() + " " 
+                          + Integer.toString(_heartbeatInterval * 2);
+            if (!SSHCmdHelper.sshExecuteCmd(sshConnection, shcmd)) {
                 s_logger.debug("Heart beat is gone so dead.");
                 return new CheckOnHostAnswer(cmd, false, "Heart Beat is done");
-            } else if (result.contains("> ALIVE <")) {
-                s_logger.debug("Heart beat is still going");
-                return new CheckOnHostAnswer(cmd, true, "Heartbeat is still going");
             }
-            return new CheckOnHostAnswer(cmd, null, "Unable to determine");
+            s_logger.debug("Heart beat is still going");
+            return new CheckOnHostAnswer(cmd, true, "Heartbeat is still going");
         } catch (Exception e) {
-            s_logger.warn("Unable to fence", e);
-            return new CheckOnHostAnswer(cmd, e.getMessage());
+            s_logger.warn("Catch exception " + e.toString(), e);
+            return new CheckOnHostAnswer(cmd, null, "Unable to determine");
         }
     }
 
