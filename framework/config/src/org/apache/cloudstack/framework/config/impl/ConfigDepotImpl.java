@@ -124,11 +124,13 @@ public class ConfigDepotImpl implements ConfigDepot, ConfigDepotAdmin {
                 if (vo.isDynamic() != key.isDynamic() ||
                     !ObjectUtils.equals(vo.getDescription(), key.description()) ||
                     !ObjectUtils.equals(vo.getDefaultValue(), key.defaultValue()) ||
-                    !ObjectUtils.equals(vo.getScope(), key.scope().toString())) {
+                    !ObjectUtils.equals(vo.getScope(), key.scope().toString()) ||
+                    !ObjectUtils.equals(vo.getComponent(), configurable.getConfigComponentName()) ) {
                     vo.setDynamic(key.isDynamic());
                     vo.setDescription(key.description());
                     vo.setDefaultValue(key.defaultValue());
                     vo.setScope(key.scope().toString());
+                    vo.setComponent(configurable.getConfigComponentName());
                     vo.setUpdated(date);
                     _configDao.persist(vo);
                 }

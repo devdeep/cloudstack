@@ -173,7 +173,7 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
             "Interval to send application level pings to make sure the connection is still working", false);
     protected final ConfigKey<Float> PingTimeout = new ConfigKey<Float>(Float.class, "ping.timeout", "Advanced", "2.5",
             "Multiplier to ping.interval before announcing an agent has timed out", true);
-    protected final ConfigKey<Integer> AlertWait = new ConfigKey<Integer>(Integer.class, "alert.wait", "Advanced", "1800",
+    protected final ConfigKey<Integer> AlertWait = new ConfigKey<Integer>(Integer.class, "alert.wait", "Alert", "1800",
             "Seconds to wait before alerting on a disconnected agent", true);
     protected final ConfigKey<Integer> DirectAgentLoadSize = new ConfigKey<Integer>(Integer.class, "direct.agent.load.size", "Advanced", "16",
             "The number of direct agents to load each time", false);
