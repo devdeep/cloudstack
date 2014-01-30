@@ -56,7 +56,7 @@ public class KVMGuru extends HypervisorGuruBase implements HypervisorGuru {
     public Pair<Boolean, Long> getCommandHostDelegation(long hostId, Command cmd) {
         if (cmd instanceof StorageSubSystemCommand) {
             StorageSubSystemCommand c = (StorageSubSystemCommand)cmd;
-            c.setExecuteInSequence(false);
+            c.setExecuteInSequence(true);
         }
         return new Pair<Boolean, Long>(false, new Long(hostId));
     }

@@ -1193,7 +1193,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
     protected boolean getExecuteInSequence(HypervisorType hypervisorType) {
         if (HypervisorType.KVM == hypervisorType) {
-            return false;
+            return true;
         } else {
             return ExecuteInSequence.value();
         }
