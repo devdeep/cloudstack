@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -44,6 +45,7 @@ import java.util.UUID;
 import javax.ejb.Local;
 import javax.naming.ConfigurationException;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
@@ -52,6 +54,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 import com.google.gson.Gson;
 import com.trilead.ssh2.SCPClient;
@@ -2888,41 +2891,16 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         /*
          * Note: 1 => called from host, hence host stats 2 => called from vm, hence vm stats
          */
-        String stats = "";
+        Document doc = null;
 
         try {
-            if (flag == 1) {
-                stats = getHostStatsRawXML(conn);
-            }
-            if (flag == 2) {
-                stats = getVmStatsRawXML(conn);
-            }
+            doc = getStatsRawXML(conn, flag == 1 ? true : false);
         } catch (Exception e1) {
             s_logger.warn("Error whilst collecting raw stats from plugin: ", e1);
             return null;
         }
 
-        // s_logger.debug("The raw xml stream is:"+stats);
-        // s_logger.debug("Length of raw xml is:"+stats.length());
-
-        //stats are null when the host plugin call fails (host down state)
-        if(stats == null) {
-            return null;
-        }
-
-        StringReader statsReader = new StringReader(stats);
-        InputSource statsSource = new InputSource(statsReader);
-
-        Document doc = null;
-        try {
-            doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(statsSource);
-        } catch (Exception e) {
-            s_logger.warn("Exception caught whilst processing the document via document factory:", e);
-            return null;
-        }
-
-        if(doc==null){
-            s_logger.warn("Null document found after tryinh to parse the stats source");
+        if (doc == null) {         //stats are null when the host plugin call fails (host down state)
             return null;
         }
 
@@ -2948,6 +2926,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
         return new Object[] { numRows, numColumns, legend, dataNode };
     }
+
 
     protected String getXMLNodeValue(Node n) {
         return n.getChildNodes().item(0).getNodeValue();
@@ -2993,21 +2972,47 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
     }
 
-    protected String getHostStatsRawXML(Connection conn) {
+    protected Document getStatsRawXML(Connection conn, boolean host) {
         Date currentDate = new Date();
-        String startTime = String.valueOf(currentDate.getTime() / 1000 - 1000);
+        String urlStr = "http://" + _host.ip + "/rrd_updates?";
+        urlStr += "session_id=" + conn.getSessionReference();
+        urlStr += "&host=" + (host ? "true" : "false");
+        urlStr += "&cf=" + _consolidationFunction;
+        urlStr += "&interval=" + _pollingIntervalInSeconds;
+        urlStr += "&start=" + (currentDate.getTime() / 1000 - 1000 - 100);
 
-        return callHostPlugin(conn, "vmops", "gethostvmstats", "collectHostStats", String.valueOf("true"), "consolidationFunction", _consolidationFunction, "interval", String
-                .valueOf(_pollingIntervalInSeconds), "startTime", startTime);
+        URL url;
+        BufferedReader in = null;
+        try {
+            url = new URL(urlStr);
+            url.openConnection();
+            URLConnection uc = url.openConnection();
+            in = new BufferedReader(new InputStreamReader(uc.getInputStream()));
+            InputSource statsSource = new InputSource(in);
+            return DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(statsSource);
+        } catch (MalformedURLException e) {
+            s_logger.warn("Malformed URL?  come on...." + urlStr);
+            return null;
+        } catch (IOException e) {
+            s_logger.warn("Problems getting stats using " + urlStr, e);
+            return null;
+        } catch (SAXException e) {
+            s_logger.warn("Problems getting stats using " + urlStr, e);
+            return null;
+        } catch (ParserConfigurationException e) {
+            s_logger.warn("Problems getting stats using " + urlStr, e);
+            return null;
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException e) {
+                    s_logger.warn("Unable to close the buffer ", e);
+                }
+            }
+        }
     }
 
-    protected String getVmStatsRawXML(Connection conn) {
-        Date currentDate = new Date();
-        String startTime = String.valueOf(currentDate.getTime() / 1000 - 1000);
-
-        return callHostPlugin(conn, "vmops", "gethostvmstats", "collectHostStats", String.valueOf("false"), "consolidationFunction", _consolidationFunction, "interval", String
-                .valueOf(_pollingIntervalInSeconds), "startTime", startTime);
-    }
 
     protected State convertToState(Types.VmPowerState ps) {
         final State state = s_statesTable.get(ps);
