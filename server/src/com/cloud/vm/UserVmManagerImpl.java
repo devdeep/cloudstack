@@ -164,6 +164,7 @@ import com.cloud.network.dao.PhysicalNetworkDao;
 import com.cloud.network.element.UserDataServiceProvider;
 import com.cloud.network.guru.NetworkGuru;
 import com.cloud.network.lb.LoadBalancingRulesManager;
+import com.cloud.network.router.VpcVirtualNetworkApplianceManager;
 import com.cloud.network.rules.FirewallManager;
 import com.cloud.network.rules.FirewallRuleVO;
 import com.cloud.network.rules.PortForwardingRuleVO;
@@ -257,6 +258,7 @@ import com.cloud.utils.exception.ExecutionException;
 import com.cloud.utils.fsm.NoTransitionException;
 import com.cloud.utils.net.NetUtils;
 import com.cloud.vm.VirtualMachine.State;
+import com.cloud.vm.dao.DomainRouterDao;
 import com.cloud.vm.dao.InstanceGroupDao;
 import com.cloud.vm.dao.InstanceGroupVMMapDao;
 import com.cloud.vm.dao.NicDao;
@@ -448,6 +450,10 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     VolumeDataFactory volFactory;
     @Inject
     UserVmDetailsDao _uservmDetailsDao;
+    @Inject
+    VpcVirtualNetworkApplianceManager _virtualNetAppliance;
+    @Inject
+    DomainRouterDao _routerDao;
 
     protected ScheduledExecutorService _executor = null;
     protected int _expungeInterval;
@@ -762,6 +768,29 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         if (vm.getState() == State.Running && vm.getHostId() != null) {
+            //start router if not already running
+            try {
+                //list all nics of vm
+                List<NicVO> nics = _nicDao.listByVmId(vmId);
+                for(NicVO nic : nics) {
+                    //list all nics each vm network contains
+                    List<NicVO> networkNics = _nicDao.listByNetworkId(nic.getNetworkId());
+                    for(NicVO networkNic : networkNics) {
+                        if(networkNic.getVmType() == VirtualMachine.Type.DomainRouter) {
+                            Long routerId = networkNic.getInstanceId();
+                            DomainRouterVO router = _routerDao.findById(routerId);
+                            //if router is not running try to start it
+                            if (router.getState() != State.Running) {
+                                s_logger.warn("Found router with id " + routerId + " in " + router.getState() + " state");
+                                s_logger.debug("Trying to start router with id " + routerId + " in network " + networkNic.getNetworkId());
+                                _virtualNetAppliance.startRouter(routerId,true);
+                            }
+                        }
+                    }
+                }
+            } catch (ConcurrentOperationException e) {
+                throw new CloudRuntimeException("Concurrent operations on starting router. " + e);
+            }
             collectVmDiskStatistics(vm);
             _itMgr.reboot(vm.getUuid(), null);
             return _vmDao.findById(vmId);
