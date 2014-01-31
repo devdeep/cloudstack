@@ -7392,53 +7392,16 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         _agentControl = agentControl;
     }
 
-    protected Answer execute(PoolEjectCommand cmd) {
-        Connection conn = getConnection();
-        String hostuuid = cmd.getHostuuid();
+    protected Answer execute(PoolEjectCommand cmd) {  	
         try {
-            Host host = Host.getByUuid(conn, hostuuid);
-            if( isRefNull(host) ) {
-                s_logger.debug("host " + hostuuid + " has already been ejected from pool " + _host.pool);
+            Connection conn =  _connPool.connect(_host.uuid, UUID.randomUUID().toString(), _host.ip, _username, _password, _wait);
+            Set<Host> hosts = Host.getAll(conn);
+            if( hosts != null && hosts.size() == 1 ) {
                 return new Answer(cmd);
             }
-            // remove all tags cloud stack add before eject
-            Host.Record hr = host.getRecord(conn);
-            Iterator<String> it = hr.tags.iterator();
-            while (it.hasNext()) {
-                String tag = it.next();
-                if (tag.contains("cloud")) {
-                    it.remove();
-                }
-            }
-            host.setTags(conn, hr.tags);
-            Pool pool = Pool.getByUuid(conn, _host.pool);
-            Pool.Record poolr = pool.getRecord(conn);
-
-            Host.Record hostr = poolr.master.getRecord(conn);
-            if (_host.uuid.equals(hostr.uuid)) {
-                Map<Host, Host.Record> hostMap = Host.getAllRecords(conn);
-                if (hostMap.size() > 1) {
-                  	String msg = "This host is XS master, please designate a new XS master throught XenCenter before you delete this host from CS";
-                	s_logger.debug(msg);
-                    return new Answer(cmd, false, msg);
-                }
-            }
-
-            // eject from pool
-            try {
-                Pool.eject(conn, host);
-                try {
-                    Thread.sleep(10 * 1000);
-                } catch (InterruptedException e) {
-                }
-            } catch (XenAPIException e) {
-                String msg = "Unable to eject host " + _host.uuid + " due to " + e.toString();
-                s_logger.warn(msg);
-                host.destroy(conn);
-            }
-            return new Answer(cmd);
+            return new Answer(cmd, false, "Please eject host " + _host.ip + " from XS pool manually before delete it from CS UI");
         } catch (Exception e) {
-            String msg = "Exception Unable to destroy host " + _host.uuid + " in xenserver database due to " + e.toString();
+            String msg = "PoolEjectCommand " + _host.ip + " failed due to Exception " + e.toString();
             s_logger.warn(msg, e);
             return new Answer(cmd, false, msg);
         }

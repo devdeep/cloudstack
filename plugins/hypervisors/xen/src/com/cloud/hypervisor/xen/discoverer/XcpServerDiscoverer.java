@@ -209,17 +209,10 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 List<HostVO> clusterHosts = _resourceMgr.listAllHostsInCluster(clusterId);
                 if( clusterHosts != null && clusterHosts.size() > 0) {
                     if (!clu.getGuid().equals(poolUuid)) {
-                        if (hosts.size() == 1) {
-                            if (!addHostsToPool(conn, hostIp, clusterId)) {
-                                String msg = "Unable to add host(" + hostIp + ") to cluster " + clusterId;
-                                s_logger.warn(msg);
-                                throw new DiscoveryException(msg);
-                            }
-                        } else {
-                            String msg = "Host (" + hostIp + ") is already in pool(" + poolUuid + "), can to join pool(" + clu.getGuid() + ")";
-                            s_logger.warn(msg);
-                            throw new DiscoveryException(msg);
-                        }
+                        String msg = "Please join the host " +  hostIp + " to XS pool  "
+                        		+ clu.getGuid() + " through XC/XS before adding it through CS UI";
+                        s_logger.warn(msg);
+                        throw new DiscoveryException(msg);
                     }
                 } else {
                     setClusterGuid(clu, poolUuid);
@@ -374,55 +367,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         for (Map<String, String> details : resources.values()) {
             details.put("pool", poolUuid);
         }
-    }
-
-    protected boolean addHostsToPool(Connection conn, String hostIp, Long clusterId) throws XenAPIException, XmlRpcException, DiscoveryException {
-
-        List<HostVO> hosts;
-        hosts = _resourceMgr.listAllHostsInCluster(clusterId);
-
-        String masterIp = null;
-        String username = null;
-        String password = null;
-        Queue<String> pass=new LinkedList<String>();
-        for (HostVO host : hosts) {
-            _hostDao.loadDetails(host);
-            username = host.getDetail("username");
-            password = host.getDetail("password");
-            pass.add(password);
-            String address = host.getPrivateIpAddress();
-            Connection hostConn = _connPool.getConnect(address, username, pass);
-            if (hostConn == null) {
-                continue;
-            }
-            try {
-                Set<Pool> pools = Pool.getAll(hostConn);
-                Pool pool = pools.iterator().next();
-                masterIp = pool.getMaster(hostConn).getAddress(hostConn);
-                break;
-
-            } catch (Exception e ) {
-                s_logger.warn("Can not get master ip address from host " + address);
-            } finally {
-                try{
-                    Session.logout(hostConn);
-                } catch (Exception e ) {
-                }
-                hostConn.dispose();
-                hostConn = null;
-            }
-        }
-
-        if (masterIp == null) {
-            s_logger.warn("Unable to reach the pool master of the existing cluster");
-            throw new CloudRuntimeException("Unable to reach the pool master of the existing cluster");
-        }
-
-        if( !_connPool.joinPool(conn, hostIp, masterIp, username, pass) ){
-            s_logger.warn("Unable to join the pool");
-            throw new DiscoveryException("Unable to join the pool");
-        }
-        return true;
     }
 
     protected CitrixResourceBase createServerResource(long dcId, Long podId, Host.Record record) {
@@ -736,11 +680,10 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
 		if (host.getType() != com.cloud.host.Host.Type.Routing || host.getHypervisorType() != HypervisorType.XenServer) {
 			return null;
 		}
-
-		_resourceMgr.deleteRoutingHost(host, isForced, isForceDeleteStorage);
+        _resourceMgr.deleteRoutingHost(host, isForced, isForceDeleteStorage);
+		boolean success = false;
 		if (host.getClusterId() != null) {
 			List<HostVO> hosts = _resourceMgr.listAllUpAndEnabledHosts(com.cloud.host.Host.Type.Routing, host.getClusterId(), host.getPodId(), host.getDataCenterId());
-			boolean success = true;
 			for (HostVO thost : hosts) {
 				if (thost.getId() == host.getId()) {
 					continue;
@@ -749,13 +692,15 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
 				long thostId = thost.getId();
 				PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
 				Answer answer = _agentMgr.easySend(thostId, eject);
-				if (answer != null && answer.getResult()) {
+				if (answer == null) {
+					continue;
+				}
+			    if (answer.getResult()) {
 					s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " Succeed");
-					success = true;
-					break;
+					success = true;				
 				} else {
+					s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " failed due to " + (answer != null ? answer.getDetails() : "no answer"));
 					success = false;
-					s_logger.warn("Eject Host: " + host.getId() + " from " + thostId + " failed due to " + (answer != null ? answer.getDetails() : "no answer"));
 				}
 			}
 			if (!success) {
@@ -765,8 +710,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
 				_alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, host.getDataCenterId(), host.getPodId(), "Unable to eject host " + host.getGuid(), msg);
 			}
 		}
-
-		return new DeleteHostAnswer(true);
+		return new DeleteHostAnswer(success);
     }
 
     @Override
