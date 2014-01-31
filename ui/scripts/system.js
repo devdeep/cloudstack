@@ -2506,7 +2506,7 @@
                                                                 _custom: {
                                                                     jobId: jid,
                                                                     getUpdatedItem: function(json) {
-                                                                        //return json.queryasyncjobresultresponse.jobresult.systemvminstance;    //not all properties returned in systemvminstance
+                                                                        //return json.queryasyncjobresultresponse.jobresult.systemvm;    //not all properties returned in systemvm
                                                                         $.ajax({
                                                                             url: createURL("listRouters&id=" + json.queryasyncjobresultresponse.jobresult.systemvm.id),
                                                                             dataType: "json",
@@ -3028,7 +3028,7 @@
                                                                 _custom: {
                                                                     jobId: jid,
                                                                     getUpdatedItem: function(json) {
-                                                                        //return json.queryasyncjobresultresponse.jobresult.systemvminstance;    //not all properties returned in systemvminstance
+                                                                        //return json.queryasyncjobresultresponse.jobresult.systemvm;    //not all properties returned in systemvm
                                                                         $.ajax({
                                                                             url: createURL("listInternalLoadBalancerVMs&id=" + json.queryasyncjobresultresponse.jobresult.systemvm.id),
                                                                             dataType: "json",
@@ -3622,7 +3622,7 @@
                                                                 _custom: {
                                                                     jobId: jid,
                                                                     getUpdatedItem: function(json) {
-                                                                        //return json.queryasyncjobresultresponse.jobresult.systemvminstance;    //not all properties returned in systemvminstance
+                                                                        //return json.queryasyncjobresultresponse.jobresult.systemvm;    //not all properties returned in systemvm
                                                                         $.ajax({
                                                                             url: createURL("listRouters&id=" + json.queryasyncjobresultresponse.jobresult.systemvm.id),
                                                                             dataType: "json",
@@ -6786,7 +6786,7 @@
                                                                         _custom: {
                                                                             jobId: jid,
                                                                             getUpdatedItem: function(json) {
-                                                                                //return json.queryasyncjobresultresponse.jobresult.systemvminstance;    //not all properties returned in systemvminstance
+                                                                                //return json.queryasyncjobresultresponse.jobresult.systemvm;    //not all properties returned in systemvm
                                                                                 $.ajax({
                                                                                     url: createURL("listSystemVms&id=" + json.queryasyncjobresultresponse.jobresult.systemvm.id),
                                                                                     dataType: "json",
@@ -7939,7 +7939,7 @@
                                                         _custom: {
                                                             jobId: jid,
                                                             getUpdatedItem: function(json) {
-                                                                //return json.queryasyncjobresultresponse.jobresult.systemvminstance;    //not all properties returned in systemvminstance
+                                                        //return json.queryasyncjobresultresponse.jobresult.systemvm;    //not all properties returned in systemvm
                                                                 $.ajax({
                                                                     url: createURL("listRouters&id=" + json.queryasyncjobresultresponse.jobresult.systemvm.id),
                                                                     dataType: "json",
@@ -9165,7 +9165,7 @@
                                                 _custom: {
                                                     jobId: jid,
                                                     getUpdatedItem: function(json) {
-                                                        //return json.queryasyncjobresultresponse.jobresult.systemvminstance;    //not all properties returned in systemvminstance
+                                                        //return json.queryasyncjobresultresponse.jobresult.systemvm;    //not all properties returned in systemvm
                                                         $.ajax({
                                                             url: createURL("listSystemVms&id=" + json.queryasyncjobresultresponse.jobresult.systemvm.id),
                                                             dataType: "json",
