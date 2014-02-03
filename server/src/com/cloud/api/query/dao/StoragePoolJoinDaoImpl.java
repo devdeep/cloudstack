@@ -83,14 +83,16 @@ public class StoragePoolJoinDaoImpl extends GenericDaoBase<StoragePoolJoinVO, Lo
         poolResponse.setCreated(pool.getCreated());
         if (pool.getScope() != null) {
             poolResponse.setScope(pool.getScope().toString());
+            short capacityType = pool.getScope() == ScopeType.HOST ? Capacity.CAPACITY_TYPE_LOCAL_STORAGE
+                    : Capacity.CAPACITY_TYPE_STORAGE_ALLOCATED;
+            long allocatedSize = ApiDBUtils.getStorageCapacitybyPool(pool.getId(), capacityType);
+            poolResponse.setDiskSizeAllocated(allocatedSize);
         }
         if (pool.getHypervisor() != null) {
             poolResponse.setHypervisor(pool.getHypervisor().toString());
         }
 
-        long allocatedSize = pool.getUsedCapacity() + pool.getReservedCapacity();
         poolResponse.setDiskSizeTotal(pool.getCapacityBytes());
-        poolResponse.setDiskSizeAllocated(allocatedSize);
         poolResponse.setCapacityIops(pool.getCapacityIops());
 
         // TODO: StatsCollector does not persist data
