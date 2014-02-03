@@ -26,6 +26,7 @@ import org.apache.cloudstack.api.response.HostResponse;
 import org.apache.cloudstack.api.response.SuccessResponse;
 import org.apache.log4j.Logger;
 
+import com.cloud.exception.DiscoveryException;
 import com.cloud.user.Account;
 
 @APICommand(name = "deleteHost", description = "Deletes a host.", responseObject = SuccessResponse.class)
@@ -80,12 +81,17 @@ public class DeleteHostCmd extends BaseCmd {
 
     @Override
     public void execute() {
-        boolean result = _resourceService.deleteHost(getId(), isForced(), isForceDestoryLocalStorage());
-        if (result) {
-            SuccessResponse response = new SuccessResponse(getCommandName());
-            this.setResponseObject(response);
-        } else {
-            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete host");
-        }
+    	try {
+            boolean result = _resourceService.deleteHost(getId(), isForced(), isForceDestoryLocalStorage());
+            if (result) {
+                SuccessResponse response = new SuccessResponse(getCommandName());
+                this.setResponseObject(response);
+            } else {
+                throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, "Failed to delete host");
+            }
+    	} catch (Exception ex) {
+            s_logger.warn("Exception: ", ex);
+            throw new ServerApiException(ApiErrorCode.INTERNAL_ERROR, ex.getMessage());
+    	}
     }
 }

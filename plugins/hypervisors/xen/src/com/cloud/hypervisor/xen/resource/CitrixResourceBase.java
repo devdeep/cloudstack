@@ -7399,7 +7399,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             if( hosts != null && hosts.size() == 1 ) {
                 return new Answer(cmd);
             }
-            return new Answer(cmd, false, "Please eject host " + _host.ip + " from XS pool manually before delete it from CS UI");
+            throw new CloudRuntimeException("Please eject host " + _host.ip + " from XS pool manually before delete it from CS UI");
         } catch (Exception e) {
             String msg = "PoolEjectCommand " + _host.ip + " failed due to Exception " + e.toString();
             s_logger.warn(msg, e);
