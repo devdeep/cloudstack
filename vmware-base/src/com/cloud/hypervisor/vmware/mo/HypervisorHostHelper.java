@@ -1155,14 +1155,20 @@ public class HypervisorHostHelper {
 
         VmwareHelper.setBasicVmConfig(vmConfig, cpuCount, cpuSpeedMHz, cpuReservedMHz, memoryMB, memoryReserveMB, guestOsIdentifier, limitCpuUse);
 
-        // Scsi controller
-        VirtualLsiLogicController scsiController = new VirtualLsiLogicController();
-        scsiController.setSharedBus(VirtualSCSISharing.NO_SHARING);
-        scsiController.setBusNumber(0);
-        scsiController.setKey(1);
-        VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
-        scsiControllerSpec.setDevice(scsiController);
-        scsiControllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+        int busNum = 0;
+        while (busNum < VmwareHelper.MAX_SCSI_CONTROLLER_COUNT) {
+            VirtualLsiLogicController scsiController = new VirtualLsiLogicController();
+
+            scsiController.setSharedBus(VirtualSCSISharing.NO_SHARING);
+            scsiController.setBusNumber(busNum);
+            scsiController.setKey(busNum - VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+            VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
+            scsiControllerSpec.setDevice(scsiController);
+            scsiControllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+
+            vmConfig.getDeviceChange().add(scsiControllerSpec);
+            busNum++;
+        }
 
         VirtualMachineFileInfo fileInfo = new VirtualMachineFileInfo();
         DatastoreMO dsMo = new DatastoreMO(host.getContext(), morDs);
@@ -1177,7 +1183,6 @@ public class HypervisorHostHelper {
         videoDeviceSpec.setDevice(videoCard);
         videoDeviceSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
 
-        vmConfig.getDeviceChange().add(scsiControllerSpec);
         vmConfig.getDeviceChange().add(videoDeviceSpec);
         if(host.createVm(vmConfig)) {
             // Here, when attempting to find the VM, we need to use the name

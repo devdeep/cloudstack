@@ -16,11 +16,13 @@
 // under the License.
 package com.cloud.agent.api;
 
+import java.util.Map;
 
 public class AttachVolumeAnswer extends Answer {
     private Long deviceId;
     private String vdiUuid;
     private String chainInfo;
+    private Map<String, String> diskDetails;
 
     public AttachVolumeAnswer(AttachVolumeCommand cmd, String result) {
         super(cmd, false, result);
@@ -58,5 +60,13 @@ public class AttachVolumeAnswer extends Answer {
 
     public String getChainInfo() {
     	return chainInfo;
+    }
+
+    public Map<String, String> getDiskDetails() {
+        return diskDetails;
+    }
+
+    public void setDiskDetails(Map<String, String> diskDetails) {
+        this.diskDetails = diskDetails;
     }
 }

@@ -22,11 +22,12 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.rmi.RemoteException;
-import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
 import org.apache.cloudstack.storage.command.CopyCmdAnswer;
@@ -50,12 +51,14 @@ import com.cloud.agent.api.to.DataTO;
 import com.cloud.agent.api.to.DiskTO;
 import com.cloud.agent.api.to.NfsTO;
 import com.cloud.hypervisor.vmware.manager.VmwareHostService;
+import com.cloud.hypervisor.vmware.manager.VmwareManager;
 import com.cloud.hypervisor.vmware.manager.VmwareStorageMount;
 import com.cloud.hypervisor.vmware.mo.ClusterMO;
 import com.cloud.hypervisor.vmware.mo.CustomFieldConstants;
 import com.cloud.hypervisor.vmware.mo.DatacenterMO;
 import com.cloud.hypervisor.vmware.mo.DatastoreFile;
 import com.cloud.hypervisor.vmware.mo.DatastoreMO;
+import com.cloud.hypervisor.vmware.mo.DiskControllerType;
 import com.cloud.hypervisor.vmware.mo.HostMO;
 import com.cloud.hypervisor.vmware.mo.HypervisorHostHelper;
 import com.cloud.hypervisor.vmware.mo.NetworkDetails;
@@ -1179,10 +1182,10 @@ public class VmwareStorageProcessor implements StorageProcessor {
         String storageHost = details.get(DiskTO.STORAGE_HOST);
         int storagePort = Integer.parseInt(details.get(DiskTO.STORAGE_PORT));
 
-        return this.attachVolume(cmd, cmd.getDisk(), true, isManaged, cmd.getVmName(), iScsiName, storageHost, storagePort);
+        return this.attachVolume(cmd, cmd.getDisk(), true, isManaged, cmd.getVmName(), iScsiName, storageHost, storagePort, cmd.getDiskController());
     }
 
-    private Answer attachVolume(Command cmd, DiskTO disk, boolean isAttach, boolean isManaged, String vmName, String iScsiName, String storageHost, int storagePort) {
+    private Answer attachVolume(Command cmd, DiskTO disk, boolean isAttach, boolean isManaged, String vmName, String iScsiName, String storageHost, int storagePort, String diskController) {
         VolumeObjectTO volumeTO = (VolumeObjectTO)disk.getData();
         DataStoreTO primaryStore = volumeTO.getDataStore();
         try {
@@ -1243,9 +1246,20 @@ public class VmwareStorageProcessor implements StorageProcessor {
             AttachAnswer answer = new AttachAnswer(disk);
 
             if (isAttach) {
-                vmMo.attachDisk(new String[] { datastoreVolumePath }, morDs);
-            }
-            else {
+                String pciDevicePath;
+                Map<String, String> diskDetails = new HashMap<String, String>();
+
+                if (diskController == null) {
+                    diskController = getControllerFromConfigurationSetting();
+                }
+                if (DiskControllerType.getType(diskController) == DiskControllerType.osdefault) {
+                    diskController = vmMo.getRecommendedDiskController(null);
+                }
+                pciDevicePath = vmMo.attachDisk(new String[] {datastoreVolumePath}, morDs, diskController);
+
+                diskDetails.put(ApiConstants.PCI_DEVICE_PATH, pciDevicePath);
+                answer.setDiskDetails(diskDetails);
+            } else {
                 vmMo.removeAllSnapshots();
                 vmMo.detachDisk(datastoreVolumePath, false);
 
@@ -1748,5 +1762,25 @@ public class VmwareStorageProcessor implements StorageProcessor {
         String templateUuid = UUID.nameUUIDFromBytes((templateName + "@" + storeIdentifier + "-" + hyperHost.getMor().getValue()).getBytes()).toString();
         templateUuid = templateUuid.replaceAll("-", "");
         return templateUuid;
+    }
+
+    private String getControllerFromConfigurationSetting() throws Exception {
+        String diskController = null;
+        VmwareContext context = null;
+        try {
+            context = hostService.getServiceContext(null);
+            VmwareManager mgr = context.getStockObject(VmwareManager.CONTEXT_STOCK_NAME);
+            diskController = mgr.getDataDiskController();
+        } catch (Throwable e) {
+            if (e instanceof RemoteException) {
+                s_logger.warn("Encounter remote exception to vCenter, invalidate VMware session context");
+                hostService.invalidateServiceContext(context);
+            }
+
+            String details = "Failed to connect to vCenter due to " + VmwareHelper.getExceptionMessage(e);
+            s_logger.error(details, e);
+        }
+
+        return diskController;
     }
 }

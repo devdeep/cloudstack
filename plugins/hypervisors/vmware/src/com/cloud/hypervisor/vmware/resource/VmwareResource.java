@@ -103,6 +103,7 @@ import com.vmware.vim25.VirtualMachineRelocateSpecDiskLocator;
 import com.vmware.vim25.VirtualMachineRuntimeInfo;
 import com.vmware.vim25.VmwareDistributedVirtualSwitchVlanIdSpec;
 
+import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.storage.command.DeleteCommand;
 import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
@@ -2687,7 +2688,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     vmMo.tearDownDevices(new Class<?>[] { VirtualDisk.class, VirtualEthernetCard.class });
                 else
                     vmMo.tearDownDevices(new Class<?>[] { VirtualEthernetCard.class });
-                vmMo.ensureScsiDeviceController();
+                vmMo.ensureScsiDeviceControllers(VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
             } else {
                 ManagedObjectReference morDc = hyperHost.getHyperHostDatacenter();
                 assert (morDc != null);
@@ -2709,7 +2710,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                         vmMo.tearDownDevices(new Class<?>[] { VirtualDisk.class, VirtualEthernetCard.class });
                     else
                         vmMo.tearDownDevices(new Class<?>[] { VirtualEthernetCard.class });
-                    vmMo.ensureScsiDeviceController();
+                    vmMo.ensureScsiDeviceControllers(VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
                 } else {
                     Pair<ManagedObjectReference, DatastoreMO> rootDiskDataStoreDetails = null;
                     for (DiskTO vol : disks) {
@@ -4736,7 +4737,11 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
             AttachVolumeAnswer answer = new AttachVolumeAnswer(cmd, cmd.getDeviceId(), datastoreVolumePath);
             if (cmd.getAttach()) {
-                vmMo.attachDisk(new String[] { datastoreVolumePath }, morDs);
+                String pciDevicePath;
+                pciDevicePath = vmMo.attachDisk(new String[] {datastoreVolumePath}, morDs);
+                Map<String, String> diskDetails = new HashMap<String, String>();
+                diskDetails.put(ApiConstants.PCI_DEVICE_PATH, pciDevicePath);
+                answer.setDiskDetails(diskDetails);
             } else {
                 vmMo.removeAllSnapshots();
                 vmMo.detachDisk(datastoreVolumePath, false);

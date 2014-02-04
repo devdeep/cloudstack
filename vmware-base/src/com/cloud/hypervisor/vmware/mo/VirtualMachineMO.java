@@ -103,6 +103,7 @@ import com.vmware.vim25.VirtualSCSISharing;
 import com.cloud.hypervisor.vmware.mo.SnapshotDescriptor.SnapshotInfo;
 import com.cloud.hypervisor.vmware.util.VmwareContext;
 import com.cloud.hypervisor.vmware.util.VmwareHelper;
+import com.cloud.hypervisor.vmware.util.VmwareVirtualPciConstants;
 import com.cloud.utils.ActionDelegate;
 import com.cloud.utils.Pair;
 import com.cloud.utils.Ternary;
@@ -1067,14 +1068,34 @@ public class VirtualMachineMO extends BaseMO {
 			s_logger.trace("vCenter API trace - createDisk() done(successfully)");
 	}
 
-	public void attachDisk(String[] vmdkDatastorePathChain, ManagedObjectReference morDs) throws Exception {
+    public int getPciBusSlotNumber(int busNumber) throws Exception {
+        VirtualMachineConfigInfo configInfo = getConfigInfo();
+        List<OptionValue> values = configInfo.getExtraConfig();
+        String value = "0";
+        String scsiControllerSlotKey = "scsi" + busNumber + ".pciSlotNumber";
+        if (values != null) {
+            for (OptionValue option : values) {
+                if (option.getKey().equalsIgnoreCase(scsiControllerSlotKey)) {
+                    value = (String)option.getValue();
+                }
+            }
+        }
+        return Integer.parseInt(value);
+    }
+
+	public String attachDisk(String[] vmdkDatastorePathChain, ManagedObjectReference morDs) throws Exception {
 
 		if(s_logger.isTraceEnabled())
 			s_logger.trace("vCenter API trace - attachDisk(). target MOR: " + _mor.getValue() + ", vmdkDatastorePath: "
 				+ new Gson().toJson(vmdkDatastorePathChain) + ", datastore: " + morDs.getValue());
+        int controllerKey = 0;
+        int unitNumber = 0;
 
 		VirtualDevice newDisk = VmwareHelper.prepareDiskDevice(this, null, getScsiDeviceControllerKey(),
 			vmdkDatastorePathChain, morDs, -1, 1);
+        controllerKey = newDisk.getControllerKey();
+        unitNumber = newDisk.getUnitNumber();
+
 	    VirtualMachineConfigSpec reConfigSpec = new VirtualMachineConfigSpec();
 	    VirtualDeviceConfigSpec deviceConfigSpec = new VirtualDeviceConfigSpec();
 
@@ -1096,7 +1117,36 @@ public class VirtualMachineMO extends BaseMO {
 
 		if(s_logger.isTraceEnabled())
 			s_logger.trace("vCenter API trace - attachDisk() done(successfully)");
-	}
+
+        String pciBusPath = null;
+        int busNumber = getControllerBusNumber(controllerKey);
+        //int controllerPciSlotNumber = getPciBusSlotNumber(busNumber);
+        String bus = VmwareVirtualPciConstants.PCI_BUS_LSILOGIC_CONTROLLER[busNumber];
+        String device = VmwareVirtualPciConstants.PCI_DEVICE_LSILOGIC_CONTROLLER[busNumber];
+        String func = VmwareVirtualPciConstants.PCI_FUNC_LSILOGIC_CONTROLLER;
+        int virtualNodeUnitNumber = unitNumber;
+        pciBusPath = VmwareVirtualPciConstants.PCI_BUS_DOMAIN + VmwareVirtualPciConstants.PCI_BUS_PATH_SEPARATOR_DOMAIN_BUS +
+                bus + ":" + device + VmwareVirtualPciConstants.PCI_BUS_PATH_SEPARATOR_DEVICE_FUNC +
+                func + VmwareVirtualPciConstants.PCI_BUS_PATH_SEPARATOR_FUNC_UNIT + VmwareVirtualPciConstants.PCI_DEVICE_UNIT_PREFIX +
+                virtualNodeUnitNumber + VmwareVirtualPciConstants.PCI_DEVICE_UNIT_POSTFIX;
+        s_logger.info("PCI bus path for this disk is : " + pciBusPath);
+        return pciBusPath;
+    }
+
+    private int getControllerBusNumber(int controllerKey) throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof VirtualLsiLogicController && device.getKey() == controllerKey) {
+                    return ((VirtualLsiLogicController)device).getBusNumber();
+                }
+            }
+        }
+        throw new Exception("SCSI Controller with key " + controllerKey + " is Not Found");
+
+    }
 
 	public void attachDisk(Pair<String, ManagedObjectReference>[] vmdkDatastorePathChain, int controllerKey) throws Exception {
 
@@ -1946,6 +1996,34 @@ public class VirtualMachineMO extends BaseMO {
 			}
 		}
 	}
+
+    public void ensureScsiDeviceControllers(int count) throws Exception {
+        int scsiControllerKey = getScsiDeviceControllerKeyNoException();
+        if (scsiControllerKey < 0) {
+            VirtualMachineConfigSpec vmConfig = new VirtualMachineConfigSpec();
+
+            int busNum = 0;
+            while (busNum < count) {
+                VirtualLsiLogicController scsiController = new VirtualLsiLogicController();
+
+                scsiController.setSharedBus(VirtualSCSISharing.NO_SHARING);
+                scsiController.setBusNumber(busNum);
+                scsiController.setKey(busNum - VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+                VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
+                scsiControllerSpec.setDevice(scsiController);
+                scsiControllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+
+                vmConfig.getDeviceChange().add(scsiControllerSpec);
+                busNum++;
+            }
+
+            if (configureVm(vmConfig)) {
+                throw new Exception("Unable to add Scsi controllers to the VM " + this.getName());
+            } else {
+                s_logger.info("Successfully added " + count + " SCSI controllers.");
+            }
+        }
+    }
 
 	// return pair of VirtualDisk and disk device bus name(ide0:0, etc)
 	public Pair<VirtualDisk, String> getDiskDevice(String vmdkDatastorePath, boolean matchExactly) throws Exception {

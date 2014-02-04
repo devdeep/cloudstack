@@ -1481,18 +1481,20 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
         boolean sendCommand = vm.getState() == State.Running;
 
         Long hostId = vm.getHostId();
-
+        HostVO host = null;
         if (hostId == null) {
             hostId = vm.getLastHostId();
 
-            HostVO host = _hostDao.findById(hostId);
+            host = _hostDao.findById(hostId);
 
             if (host != null && host.getHypervisorType() == HypervisorType.VMware) {
                 sendCommand = true;
             }
+        } else {
+            host = _hostDao.findById(hostId);
         }
 
-        HostVO host = null;
+        host = null;
         StoragePoolVO volumePool = _storagePoolDao.findById(volume.getPoolId());
 
         if (hostId != null) {
@@ -2089,6 +2091,15 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                     volumeToAttach.setPath(answer.getDisk().getPath());
 
                     _volsDao.update(volumeToAttach.getId(), volumeToAttach);
+                }
+                // Update volumes details
+                if (host.getHypervisorType() == HypervisorType.VMware) {
+                    // Retrieve volume details from Answer and persist in volume_details table.
+                    Map<String, String> diskDetails = answer.getDiskDetails();
+                    for (Map.Entry<String, String> detail : diskDetails.entrySet()) {
+                        VolumeDetailVO volumeDetailVo = new VolumeDetailVO(volumeToAttach.getId(), detail.getKey(), detail.getValue());
+                        _volDetailDao.persist(volumeDetailVo);
+                    }
                 }
             } else {
                 _volsDao.attachVolume(volumeToAttach.getId(), vm.getId(), deviceId);

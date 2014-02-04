@@ -72,7 +72,9 @@ import com.cloud.utils.exception.ExceptionUtil;
 
 public class VmwareHelper {
     private static final Logger s_logger = Logger.getLogger(VmwareHelper.class);
-    
+    public static final int MAX_SCSI_CONTROLLER_COUNT = 4;
+    public static final int MAX_IDE_CONTROLLER_COUNT = 2;
+
 	public static boolean isReservedScsiDeviceNumber(int deviceNumber) {
 		return deviceNumber == 7;
 	}

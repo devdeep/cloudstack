@@ -18,11 +18,14 @@
  */
 package org.apache.cloudstack.storage.command;
 
+import java.util.Map;
+
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.to.DiskTO;
 
 public class AttachAnswer extends Answer {
     private DiskTO disk;
+    private Map<String, String> diskDetails;
 
     public AttachAnswer() {
         super(null);
@@ -31,6 +34,12 @@ public class AttachAnswer extends Answer {
     public AttachAnswer(DiskTO disk) {
         super(null);
         this.setDisk(disk);
+    }
+
+    public AttachAnswer(DiskTO disk, Map<String, String> diskDetails) {
+        super(null);
+        this.setDisk(disk);
+        this.setDiskDetails(diskDetails);
     }
 
     public AttachAnswer(String errMsg) {
@@ -43,5 +52,13 @@ public class AttachAnswer extends Answer {
 
     public void setDisk(DiskTO disk) {
         this.disk = disk;
+    }
+
+    public Map<String, String> getDiskDetails() {
+        return diskDetails;
+    }
+
+    public void setDiskDetails(Map<String, String> diskDetails) {
+        this.diskDetails = diskDetails;
     }
 }
