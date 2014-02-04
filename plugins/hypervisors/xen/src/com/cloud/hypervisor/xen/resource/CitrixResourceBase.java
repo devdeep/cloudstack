@@ -22,7 +22,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -391,6 +390,15 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         return _host;
     }
 
+    private static boolean isAlienVm(VM vm, Connection conn) throws XenAPIException, XmlRpcException {
+        // TODO : we need a better way to tell whether or not the VM belongs to CloudStack
+        String vmName = vm.getNameLabel(conn);
+        if (vmName.matches("^[ivs]-\\d+-.+"))
+            return false;
+
+        return true;
+    }
+
     protected boolean cleanupHaltedVms(Connection conn) throws XenAPIException, XmlRpcException {
         Host host = Host.getByUuid(conn, _host.uuid);
         Map<VM, VM.Record> vms = VM.getAllRecords(conn);
@@ -402,7 +410,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                 continue;
             }
 
-            if (VmPowerState.HALTED.equals(vmRec.powerState) && vmRec.affinity.equals(host)) {
+            if (VmPowerState.HALTED.equals(vmRec.powerState) && vmRec.affinity.equals(host) && !isAlienVm(vm, conn)) {
                 try {
                     vm.destroy(conn);
                 } catch (Exception e) {
@@ -7392,7 +7400,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         _agentControl = agentControl;
     }
 
-    protected Answer execute(PoolEjectCommand cmd) {  	
+    protected Answer execute(PoolEjectCommand cmd) {
         try {
             Connection conn =  _connPool.connect(_host.uuid, UUID.randomUUID().toString(), _host.ip, _username, _password, _wait);
             Set<Host> hosts = Host.getAll(conn);
