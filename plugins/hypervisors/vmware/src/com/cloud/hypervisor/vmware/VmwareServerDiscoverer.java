@@ -167,6 +167,7 @@ public class VmwareServerDiscoverer extends DiscovererBase implements
                 clusterDetails.put("password", password);
                 _clusterDetailsDao.persist(clusterId, clusterDetails);
             }
+
             String updatedInventoryPath = validateCluster(url, vmwareDc);
             if (url.getPath() != updatedInventoryPath) {
                 // If url from API doesn't specify DC then update url in database with DC associated with this zone.
@@ -489,12 +490,13 @@ public class VmwareServerDiscoverer extends DiscovererBase implements
         String vmwareDcNameFromDb;
         String vmwareDcNameFromApi;
         String vCenterHost;
-        String updatedInventoryPath = url.getPath();
+        String updatedInventoryPath;
         String clusterName = null;
+        String inventoryPath;
 
         vmwareDcNameFromApi = vmwareDcNameFromDb = vmwareDc.getVmwareDatacenterName();
         vCenterHost = vmwareDc.getVcenterHost();
-        String inventoryPath = url.getPath();
+        inventoryPath = updatedInventoryPath = URLDecoder.decode(url.getPath());
 
         assert (inventoryPath != null);
 
