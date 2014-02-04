@@ -106,4 +106,7 @@ div.login {
   background: #7846BC;
 }
 
-
+.eula-container {
+    max-height: 600px;
+    overflow: auto;
+}
