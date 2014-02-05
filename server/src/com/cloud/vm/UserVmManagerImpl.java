@@ -1274,7 +1274,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
             }
             if(vmInstance.getState().equals(State.Running)){
                 // Generate usage event for Dynamic scaling of VM
-                generateUsageEvent(_offeringDao.findById(newServiceOfferingId), cmd.getDetails(), _vmDao.findById(vmId), EventTypes.EVENT_VM_UPGRADE);
+                generateUsageEvent(_offeringDao.findById(newServiceOfferingId), cmd.getDetails(), _vmDao.findById(vmId), EventTypes.EVENT_VM_DYNAMIC_SCALE);
             }
             return vmInstance;
         } else {
