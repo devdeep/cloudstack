@@ -22,11 +22,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.UUID;
 
 import javax.inject.Inject;
 
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.commons.httpclient.URIException;
+import org.apache.http.NameValuePair;
 import org.apache.log4j.Logger;
 
 import org.apache.cloudstack.engine.subsystem.api.storage.ClusterScope;
@@ -40,6 +44,7 @@ import org.apache.cloudstack.engine.subsystem.api.storage.ZoneScope;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 import org.apache.cloudstack.storage.volume.datastore.PrimaryDataStoreHelper;
+import org.apache.commons.httpclient.util.URIUtil;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.api.Answer;
@@ -68,6 +73,7 @@ import com.cloud.storage.dao.VolumeDao;
 import com.cloud.user.dao.UserDao;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.UriUtils;
+import com.cloud.utils.crypt.DBEncryptionUtil;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.vm.VirtualMachineManager;
@@ -206,12 +212,11 @@ public class CloudStackPrimaryDataStoreLifeCycleImpl implements PrimaryDataStore
             if (port == -1) {
                 port = 445;
             }
-            parameters.setType(StoragePoolType.NetworkFilesystem);
+
+            parameters.setType(StoragePoolType.SMB);
             parameters.setHost(storageHost);
             parameters.setPort(port);
             parameters.setPath(hostPath);
-            parameters.setUserInfo(uri.getQuery());
-
         } else if (scheme.equalsIgnoreCase("file")) {
             if (port == -1) {
                 port = 0;
@@ -356,7 +361,8 @@ public class CloudStackPrimaryDataStoreLifeCycleImpl implements PrimaryDataStore
                 && pool.getPoolType() != StoragePoolType.IscsiLUN && pool.getPoolType() != StoragePoolType.Iscsi
                 && pool.getPoolType() != StoragePoolType.VMFS && pool.getPoolType() != StoragePoolType.SharedMountPoint
                 && pool.getPoolType() != StoragePoolType.PreSetup && pool.getPoolType() != StoragePoolType.OCFS2
-                && pool.getPoolType() != StoragePoolType.RBD && pool.getPoolType() != StoragePoolType.CLVM) {
+                && pool.getPoolType() != StoragePoolType.RBD && pool.getPoolType() != StoragePoolType.CLVM
+                && pool.getPoolType() != StoragePoolType.SMB) {
             s_logger.warn(" Doesn't support storage pool type " + pool.getPoolType());
             return false;
         }
