@@ -216,13 +216,10 @@ public class XenServer56Resource extends CitrixResourceBase {
     protected FenceAnswer execute(FenceCommand cmd) {
         Connection conn = getConnection();
         try {
-            String result = callHostPluginPremium(conn, "check_heartbeat", "host", cmd.getHostGuid(), "interval",
-                    Integer.toString(_heartbeatInterval * 2));
-            if (!result.contains("> DEAD <")) {
+            if (check_heartbeat(cmd.getHostGuid())) {
                 s_logger.debug("Heart beat is still going so unable to fence");
                 return new FenceAnswer(cmd, false, "Heartbeat is still going on unable to fence");
             }
-
             Set<VM> vms = VM.getByNameLabel(conn, cmd.getVmName());
             for (VM vm : vms) {
                 synchronized (_cluster.intern()) {
@@ -281,8 +278,7 @@ public class XenServer56Resource extends CitrixResourceBase {
         return cmds;
     }
 
-    @Override
-    protected CheckOnHostAnswer execute(CheckOnHostCommand cmd) {  	
+    private boolean check_heartbeat(String host_uuid) {
         com.trilead.ssh2.Connection sshConnection = new com.trilead.ssh2.Connection(_host.ip, 22);
         try {
             sshConnection.connect(null, 60000, 60000);
@@ -290,18 +286,30 @@ public class XenServer56Resource extends CitrixResourceBase {
                 throw new CloudRuntimeException("Unable to authenticate");
             }
 
-            String shcmd = "/opt/cloud/bin/check_heartbeat.sh " + cmd.getHost().getGuid() + " " 
+            String shcmd = "/opt/cloud/bin/check_heartbeat.sh " + host_uuid + " " 
                           + Integer.toString(_heartbeatInterval * 2);
             if (!SSHCmdHelper.sshExecuteCmd(sshConnection, shcmd)) {
                 s_logger.debug("Heart beat is gone so dead.");
-                return new CheckOnHostAnswer(cmd, false, "Heart Beat is done");
+                return false;
+
             }
             s_logger.debug("Heart beat is still going");
-            return new CheckOnHostAnswer(cmd, true, "Heartbeat is still going");
-        } catch (Exception e) {
+            return true;
+        }  catch (Exception e) {
             s_logger.warn("Catch exception " + e.toString(), e);
-            return new CheckOnHostAnswer(cmd, null, "Unable to determine");
+            return false;
         }
+        
+    }
+    
+    @Override
+    protected CheckOnHostAnswer execute(CheckOnHostCommand cmd) {  	
+        if (!check_heartbeat(cmd.getHost().getGuid())) {
+            s_logger.debug("Heart beat is gone so dead.");
+            return new CheckOnHostAnswer(cmd, false, "Heart Beat is done");
+        }
+        s_logger.debug("Heart beat is still going");
+        return new CheckOnHostAnswer(cmd, true, "Heartbeat is still going");
     }
 
     public XenServer56Resource() {
