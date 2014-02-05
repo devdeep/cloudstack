@@ -840,8 +840,10 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
 
         handleDisconnectWithoutInvestigation(attache, event, true, true);
         host = _hostDao.findById(host.getId());
-        if (host.getStatus() == Status.Alert || host.getStatus() == Status.Down) {
+        if (host.getStatus().equals(Status.Alert) ) {
             _haMgr.scheduleRestartForVmsOnHost(host, true);
+        } else if ( host.getStatus().equals(Status.Down)) {
+            _haMgr.scheduleRestartForVmsOnHost(host, false);	
         }
 
         return true;
