@@ -2630,6 +2630,73 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         return new ScaleVmAnswer(cmd, true, null);
     }
 
+    protected void ensureDiskControllers(VirtualMachineMO vmMo, Pair<String, String> controllerInfo) throws Exception {
+        if (vmMo == null) {
+            return;
+        }
+
+        String msg;
+        String rootDiskController = controllerInfo.first();
+        String dataDiskController = controllerInfo.second();
+        String scsiDiskController;
+
+        // If "osdefault" is specified as controller type, then translate to actual recommended controller.
+
+        String recommendedController = null;
+        if (isControllerOsRecommended(rootDiskController) || isControllerOsRecommended(dataDiskController)) {
+            recommendedController = vmMo.getRecommendedDiskController(null);
+        }
+
+        if (isControllerOsRecommended(rootDiskController)) {
+            rootDiskController = recommendedController;
+        }
+        if (isControllerOsRecommended(dataDiskController)) {
+            dataDiskController = recommendedController;
+        }
+
+        scsiDiskController = HypervisorHostHelper.getScsiController(new Pair<String, String>(rootDiskController, dataDiskController));
+        if (scsiDiskController == null) {
+            return;
+        }
+
+        vmMo.getScsiDeviceControllerKeyNoException();
+        // This VM needs SCSI controllers.
+        // Get count of existing scsi controllers. Helps not to attempt to create more than the maximum allowed 4
+        // Get maximum among the bus numbers in use by scsi controllers. Safe to pick maximum, because we always go sequential allocating bus numbers.
+        Ternary<Integer, Integer, DiskControllerType> scsiControllerInfo = vmMo.getScsiControllerInfo();
+        int requiredNumScsiControllers = VmwareHelper.MAX_SCSI_CONTROLLER_COUNT - scsiControllerInfo.first();
+        int availableBusNum = scsiControllerInfo.second() + 1; // method returned current max. bus number
+
+        if (requiredNumScsiControllers == 0) {
+            return;
+        }
+        if (scsiControllerInfo.first() > 0) {
+            // For VMs which already have a SCSI controller, do NOT attempt to add any more SCSI controllers & return the sub type.
+            // For Legacy VMs would have only 1 LsiLogic Parallel SCSI controller, and doesn't require more.
+            // For VMs created post device ordering support, 4 SCSI subtype controllers are ensured during deployment itself. No need to add more.
+            // For fresh VM deployment only, all required controllers should be ensured.
+            return;
+        }
+        // Pick the sub type of scsi
+        if (DiskControllerType.getType(scsiDiskController) == DiskControllerType.pvscsi) {
+            if (!vmMo.isPvScsiSupported()) {
+                msg = "This VM doesn't support Vmware Paravirtual SCSI controller for virtual disks, because the virtual hardware version is less than 7.";
+                throw new Exception(msg);
+            }
+            vmMo.ensurePvScsiDeviceController(requiredNumScsiControllers, availableBusNum);
+        } else if (DiskControllerType.getType(scsiDiskController) == DiskControllerType.lsisas1068) {
+            vmMo.ensureLsiLogicSasDeviceControllers(requiredNumScsiControllers, availableBusNum);
+        } else if (DiskControllerType.getType(scsiDiskController) == DiskControllerType.buslogic) {
+            vmMo.ensureBusLogicDeviceControllers(requiredNumScsiControllers, availableBusNum);
+        } else if (DiskControllerType.getType(scsiDiskController) == DiskControllerType.lsilogic) {
+            vmMo.ensureScsiDeviceControllers(requiredNumScsiControllers, availableBusNum);
+        }
+    }
+
+    public boolean isControllerOsRecommended(String dataDiskController) {
+        return DiskControllerType.getType(dataDiskController) == DiskControllerType.osdefault;
+    }
+
     protected StartAnswer execute(StartCommand cmd) {
         if (s_logger.isInfoEnabled()) {
             s_logger.info("Executing resource StartCommand: " + _gson.toJson(cmd));
@@ -2640,6 +2707,21 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         Pair<String, String> names = composeVmNames(vmSpec);
         String vmInternalCSName = names.first();
         String vmNameOnVcenter = names.second();
+        String dataDiskController = vmSpec.getDetails().get(VmDetailConstants.DATA_DISK_CONTROLLER);
+        String rootDiskController = vmSpec.getDetails().get(VmDetailConstants.ROOK_DISK_CONTROLLER);
+
+        // Validate the controller types
+        dataDiskController = DiskControllerType.getType(dataDiskController).toString();
+        rootDiskController = DiskControllerType.getType(rootDiskController).toString();
+
+        if (DiskControllerType.getType(rootDiskController) == DiskControllerType.none) {
+            throw new CloudRuntimeException("Invalid root disk controller detected : " + VmDetailConstants.ROOK_DISK_CONTROLLER);
+        }
+        if (DiskControllerType.getType(dataDiskController) == DiskControllerType.none) {
+            throw new CloudRuntimeException("Invalid data disk controller detected : " + VmDetailConstants.DATA_DISK_CONTROLLER);
+        }
+
+        Pair<String, String> controllerInfo = new Pair<String, String>(rootDiskController, dataDiskController);
 
         // Thus, vmInternalCSName always holds i-x-y, the cloudstack generated internal VM name.
         State state = State.Stopped;
@@ -2688,7 +2770,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     vmMo.tearDownDevices(new Class<?>[] { VirtualDisk.class, VirtualEthernetCard.class });
                 else
                     vmMo.tearDownDevices(new Class<?>[] { VirtualEthernetCard.class });
-                vmMo.ensureScsiDeviceControllers(VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+                ensureDiskControllers(vmMo, controllerInfo);
             } else {
                 ManagedObjectReference morDc = hyperHost.getHyperHostDatacenter();
                 assert (morDc != null);
@@ -2710,7 +2792,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                         vmMo.tearDownDevices(new Class<?>[] { VirtualDisk.class, VirtualEthernetCard.class });
                     else
                         vmMo.tearDownDevices(new Class<?>[] { VirtualEthernetCard.class });
-                    vmMo.ensureScsiDeviceControllers(VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+                    ensureDiskControllers(vmMo, controllerInfo);
                 } else {
                     Pair<ManagedObjectReference, DatastoreMO> rootDiskDataStoreDetails = null;
                     for (DiskTO vol : disks) {
@@ -2731,7 +2813,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
                     if (!hyperHost.createBlankVm(vmNameOnVcenter, vmInternalCSName, vmSpec.getCpus(), vmSpec.getMaxSpeed().intValue(),
                             getReservedCpuMHZ(vmSpec), vmSpec.getLimitCpuUse(),(int)(vmSpec.getMaxRam()/(1024*1024)), getReservedMemoryMb(vmSpec),
-                            translateGuestOsIdentifier(vmSpec.getArch(), vmSpec.getOs()).value(), rootDiskDataStoreDetails.first(), false)) {
+                            translateGuestOsIdentifier(vmSpec.getArch(), vmSpec.getOs()).value(), rootDiskDataStoreDetails.first(), false, controllerInfo)) {
                         throw new Exception("Failed to create VM. vmName: " + vmInternalCSName);
                     }
                 }
@@ -2868,8 +2950,25 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     continue;
 
                 VirtualMachineDiskInfo matchingExistingDisk = getMatchingExistingDisk(diskInfoBuilder, vol);
-                controllerKey = getDiskController(matchingExistingDisk, vol, vmSpec, ideControllerKey, scsiControllerKey);
 
+                String diskController = getDiskController(vmMo, matchingExistingDisk, vol, new Pair<String, String>(rootDiskController, dataDiskController));
+
+                if (DiskControllerType.getType(diskController) == DiskControllerType.osdefault) {
+                    diskController = vmMo.getRecommendedDiskController(null);
+                }
+                if (DiskControllerType.getType(diskController) == DiskControllerType.ide) {
+                    controllerKey = ideControllerKey;
+                    if (vol.getType() == Volume.Type.DATADISK) {
+                        // Could be result of flip due to user configured setting or "osdefault" for data disks
+                        // Ensure maximum of 2 data volumes over IDE controller, 3 includeing root volume
+                        if (vmMo.getNumberOfVirtualDisks() > 3) {
+                            throw new CloudRuntimeException("Found more than 3 virtual disks attached to this VM [" + vmMo.getVmName() + "]. Unable to implement the disks over "
+                                    + diskController + " controller, as maximum number of devices supported over IDE controller is 4 includeing CDROM device.");
+                        }
+                    }
+                } else {
+                    controllerKey = vmMo.getScsiDiskControllerKey(diskController);
+                }
                 if(!hasSnapshot) {
                     deviceConfigSpecArray[i] = new VirtualDeviceConfigSpec();
 
@@ -3410,6 +3509,38 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         }
 
         return controllerKey;
+    }
+
+    private String getDiskController(VirtualMachineMO vmMo, VirtualMachineDiskInfo matchingExistingDisk, DiskTO vol, Pair<String, String> controllerInfo) throws Exception {
+        int controllerKey;
+        DiskControllerType controllerType = DiskControllerType.none;
+
+        if (matchingExistingDisk != null) {
+            String currentBusName = matchingExistingDisk.getDiskDeviceBusName();
+            if (currentBusName != null) {
+                s_logger.info("Chose disk controller based on existing information: " + currentBusName);
+                if (currentBusName.startsWith("ide")) {
+                    controllerType = DiskControllerType.ide;
+                } else if (currentBusName.startsWith("scsi")) {
+                    controllerType = DiskControllerType.scsi;
+                }
+            }
+            if (controllerType == DiskControllerType.scsi || controllerType == DiskControllerType.none) {
+                Ternary<Integer, Integer, DiskControllerType> vmScsiControllerInfo = vmMo.getScsiControllerInfo();
+                controllerType = vmScsiControllerInfo.third();
+            }
+            return controllerType.toString();
+        }
+
+        if (vol.getType() == Volume.Type.ROOT) {
+            s_logger.info("Chose disk controller for vol " + vol.getType() + " -> " + controllerInfo.first()
+                    + ", based on root disk controller settings at global configuration setting.");
+            return controllerInfo.first();
+        } else {
+            s_logger.info("Chose disk controller for vol " + vol.getType() + " -> " + controllerInfo.second()
+                    + ", based on default data disk controller setting i.e. Operating system recommended."); // Need to bring in global configuration setting & template level setting.
+            return controllerInfo.second();
+        }
     }
 
     private void postDiskConfigBeforeStart(VirtualMachineMO vmMo, VirtualMachineTO vmSpec, DiskTO[] sortedDisks,
@@ -4734,12 +4865,21 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             if (datastoreVolumePath == null) {
                 throw new CloudRuntimeException("Unable to find file " + cmd.getVolumePath() + ".vmdk in datastore " + dsMo.getName());
             }
+            String diskController = cmd.getDiskController();
+            if (diskController == null) {
+                diskController = getControllerFromConfigurationSetting();
+            }
+            if (DiskControllerType.getType(diskController) == DiskControllerType.osdefault) {
+                diskController = vmMo.getRecommendedDiskController(null);
+            }
 
             AttachVolumeAnswer answer = new AttachVolumeAnswer(cmd, cmd.getDeviceId(), datastoreVolumePath);
             if (cmd.getAttach()) {
                 String pciDevicePath;
-                pciDevicePath = vmMo.attachDisk(new String[] {datastoreVolumePath}, morDs);
                 Map<String, String> diskDetails = new HashMap<String, String>();
+
+                pciDevicePath = vmMo.attachDisk(new String[] {datastoreVolumePath}, morDs, diskController);
+
                 diskDetails.put(ApiConstants.PCI_DEVICE_PATH, pciDevicePath);
                 answer.setDiskDetails(diskDetails);
             } else {
@@ -4764,6 +4904,26 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             s_logger.error(msg, e);
             return new AttachVolumeAnswer(cmd, msg);
         }
+    }
+
+    private String getControllerFromConfigurationSetting() throws Exception {
+        String diskController = null;
+
+        try {
+            VmwareContext context = getServiceContext();
+            VmwareManager mgr = context.getStockObject(VmwareManager.CONTEXT_STOCK_NAME);
+            diskController = mgr.getDataDiskController();
+        } catch (Throwable e) {
+            if (e instanceof RemoteException) {
+                s_logger.warn("Encounter remote exception to vCenter, invalidate VMware session context");
+                invalidateServiceContext();
+            }
+
+            String details = "Failed to connect to vCenter due to " + VmwareHelper.getExceptionMessage(e);
+            s_logger.error(details, e);
+        }
+
+        return diskController;
     }
 
     @Override
@@ -6966,8 +7126,10 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             value = (String)params.get("vmware.root.disk.controller");
             if(value != null && value.equalsIgnoreCase("scsi"))
                 _rootDiskController = DiskControllerType.scsi;
-            else
+            else if (value != null && value.equalsIgnoreCase("ide"))
                 _rootDiskController = DiskControllerType.ide;
+            else
+                _rootDiskController = DiskControllerType.osdefault;
 
             Integer intObj = (Integer) params.get("ports.per.dvportgroup");
             if (intObj != null)

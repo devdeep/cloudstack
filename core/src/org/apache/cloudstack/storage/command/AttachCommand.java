@@ -25,11 +25,27 @@ public final class AttachCommand extends Command implements StorageSubSystemComm
     private DiskTO disk;
     private String vmName;
     private boolean inSeq = false;
+    private String diskController;
 
     public AttachCommand(DiskTO disk, String vmName) {
         super();
         this.disk = disk;
         this.vmName = vmName;
+    }
+
+    public AttachCommand(DiskTO disk, String vmName, String diskController) {
+        super();
+        this.disk = disk;
+        this.vmName = vmName;
+        this.diskController = diskController;
+    }
+
+    public String getDiskController() {
+        return diskController;
+    }
+
+    public void setDiskController(String diskController) {
+        this.diskController = diskController;
     }
 
     @Override

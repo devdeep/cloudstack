@@ -72,4 +72,6 @@ public interface VmwareManager {
     public int getVcenterSessionTimeout();
 
     boolean isLegacyZone(long dcId);
+
+    public String getDataDiskController();
 }

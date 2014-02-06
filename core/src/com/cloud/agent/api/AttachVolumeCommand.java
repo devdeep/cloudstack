@@ -40,6 +40,7 @@ public class AttachVolumeCommand extends Command {
     private Long bytesWriteRate;
     private Long iopsReadRate;
     private Long iopsWriteRate;
+    private String diskController;
 
     protected AttachVolumeCommand() {
     }
@@ -201,5 +202,13 @@ public class AttachVolumeCommand extends Command {
 
     public Long getIopsWriteRate() {
         return iopsWriteRate;
+    }
+
+    public String getDiskController() {
+        return diskController;
+    }
+
+    public void setDiskController(String diskController) {
+        this.diskController = diskController;
     }
 }

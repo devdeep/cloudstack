@@ -65,6 +65,7 @@ import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.hypervisor.HypervisorGuru;
 import com.cloud.hypervisor.HypervisorGuruBase;
 import com.cloud.hypervisor.vmware.manager.VmwareManager;
+import com.cloud.hypervisor.vmware.mo.DiskControllerType;
 import com.cloud.hypervisor.vmware.mo.VirtualEthernetCardType;
 import com.cloud.network.Network.Provider;
 import com.cloud.network.Network.Service;
@@ -183,6 +184,14 @@ public class VMwareGuru extends HypervisorGuruBase implements HypervisorGuru, Co
             // user vm
             if (diskDeviceType == null){
                 details.put(VmDetailConstants.ROOK_DISK_CONTROLLER, _vmwareMgr.getRootDiskController());
+            }
+        }
+        String diskController = details.get(VmDetailConstants.DATA_DISK_CONTROLLER);
+        if (!(vm.getVirtualMachine() instanceof DomainRouterVO || vm.getVirtualMachine() instanceof ConsoleProxyVO
+        || vm.getVirtualMachine() instanceof SecondaryStorageVmVO)) {
+            // user vm
+            if (diskController == null) {
+                details.put(VmDetailConstants.DATA_DISK_CONTROLLER, DiskControllerType.osdefault.toString());
             }
         }
 

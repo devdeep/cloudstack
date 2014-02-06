@@ -51,17 +51,23 @@ import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.OvfCreateImportSpecParams;
 import com.vmware.vim25.OvfCreateImportSpecResult;
 import com.vmware.vim25.OvfFileItem;
+import com.vmware.vim25.ParaVirtualSCSIController;
 import com.vmware.vim25.VMwareDVSConfigSpec;
 import com.vmware.vim25.VMwareDVSPortSetting;
 import com.vmware.vim25.VMwareDVSPvlanConfigSpec;
 import com.vmware.vim25.VMwareDVSPvlanMapEntry;
+import com.vmware.vim25.VirtualBusLogicController;
+import com.vmware.vim25.VirtualController;
 import com.vmware.vim25.VirtualDeviceConfigSpec;
 import com.vmware.vim25.VirtualDeviceConfigSpecOperation;
+import com.vmware.vim25.VirtualIDEController;
 import com.vmware.vim25.VirtualLsiLogicController;
+import com.vmware.vim25.VirtualLsiLogicSASController;
 import com.vmware.vim25.VirtualMachineConfigSpec;
 import com.vmware.vim25.VirtualMachineFileInfo;
 import com.vmware.vim25.VirtualMachineGuestOsIdentifier;
 import com.vmware.vim25.VirtualMachineVideoCard;
+import com.vmware.vim25.VirtualSCSIController;
 import com.vmware.vim25.VirtualSCSISharing;
 import com.vmware.vim25.VmwareDistributedVirtualSwitchPvlanSpec;
 import com.vmware.vim25.VmwareDistributedVirtualSwitchVlanIdSpec;
@@ -1142,11 +1148,12 @@ public class HypervisorHostHelper {
 
     public static boolean createBlankVm(VmwareHypervisorHost host, String vmName, String vmInternalCSName,
             int cpuCount, int cpuSpeedMHz, int cpuReservedMHz, boolean limitCpuUse, int memoryMB, int memoryReserveMB, String guestOsIdentifier,
-            ManagedObjectReference morDs, boolean snapshotDirToParent) throws Exception {
+            ManagedObjectReference morDs, boolean snapshotDirToParent, Pair<String, String> controllerInfo) throws Exception {
 
         if(s_logger.isInfoEnabled())
             s_logger.info("Create blank VM. cpuCount: " + cpuCount + ", cpuSpeed(MHz): " + cpuSpeedMHz + ", mem(Mb): " + memoryMB);
 
+        VirtualDeviceConfigSpec controllerSpec = null;
         // VM config basics
         VirtualMachineConfigSpec vmConfig = new VirtualMachineConfigSpec();
         vmConfig.setName(vmName);
@@ -1155,19 +1162,27 @@ public class HypervisorHostHelper {
 
         VmwareHelper.setBasicVmConfig(vmConfig, cpuCount, cpuSpeedMHz, cpuReservedMHz, memoryMB, memoryReserveMB, guestOsIdentifier, limitCpuUse);
 
-        int busNum = 0;
-        while (busNum < VmwareHelper.MAX_SCSI_CONTROLLER_COUNT) {
-            VirtualLsiLogicController scsiController = new VirtualLsiLogicController();
+        String recommendedController = host.getRecommendedDiskController(guestOsIdentifier);
+        String newRootDiskController = controllerInfo.first();
+        String newDataDiskController = controllerInfo.second();
+        if (DiskControllerType.getType(controllerInfo.first()) == DiskControllerType.osdefault) {
+            newRootDiskController = recommendedController;
+        }
+        if (DiskControllerType.getType(controllerInfo.second()) == DiskControllerType.osdefault) {
+            newDataDiskController = recommendedController;
+        }
 
-            scsiController.setSharedBus(VirtualSCSISharing.NO_SHARING);
-            scsiController.setBusNumber(busNum);
-            scsiController.setKey(busNum - VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
-            VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
-            scsiControllerSpec.setDevice(scsiController);
-            scsiControllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
-
-            vmConfig.getDeviceChange().add(scsiControllerSpec);
-            busNum++;
+        Pair<String, String> updatedControllerInfo = new Pair<String, String>(newRootDiskController, newDataDiskController);
+        String scsiDiskController = HypervisorHostHelper.getScsiController(updatedControllerInfo);
+        // If there exists a SCSI controller, ensure to create those.
+        if (scsiDiskController != null) {
+            int busNum = 0;
+            while (busNum < VmwareHelper.MAX_SCSI_CONTROLLER_COUNT) {
+                VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
+                scsiControllerSpec = getControllerSpec(DiskControllerType.getType(scsiDiskController).toString(), busNum);
+                vmConfig.getDeviceChange().add(scsiControllerSpec);
+                busNum++;
+            }
         }
 
         VirtualMachineFileInfo fileInfo = new VirtualMachineFileInfo();
@@ -1210,6 +1225,35 @@ public class HypervisorHostHelper {
             return true;
         }
         return false;
+    }
+
+    private static VirtualDeviceConfigSpec getControllerSpec(String diskController, int busNum) {
+        VirtualDeviceConfigSpec controllerSpec = new VirtualDeviceConfigSpec();
+        VirtualController controller = null;
+
+        if (diskController.equalsIgnoreCase(DiskControllerType.ide.toString())) {
+           controller = new VirtualIDEController();
+        } else if (DiskControllerType.pvscsi == DiskControllerType.getType(diskController)) {
+            controller = new ParaVirtualSCSIController();
+        } else if (DiskControllerType.lsisas1068 == DiskControllerType.getType(diskController)) {
+            controller = new VirtualLsiLogicSASController();
+        } else if (DiskControllerType.buslogic == DiskControllerType.getType(diskController)) {
+            controller = new VirtualBusLogicController();
+        } else if (DiskControllerType.lsilogic == DiskControllerType.getType(diskController)) {
+            controller = new VirtualLsiLogicController();
+        }
+
+        if (!diskController.equalsIgnoreCase(DiskControllerType.ide.toString())) {
+            ((VirtualSCSIController)controller).setSharedBus(VirtualSCSISharing.NO_SHARING);
+        }
+
+        controller.setBusNumber(busNum);
+        controller.setKey(busNum - VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+
+        controllerSpec.setDevice(controller);
+        controllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+
+        return controllerSpec;
     }
 
     public static VirtualMachineMO createWorkerVM(VmwareHypervisorHost hyperHost,
@@ -1417,4 +1461,35 @@ public class HypervisorHostHelper {
             }
         }
     }
+
+    public static String getScsiController(Pair<String, String> controllerInfo) {
+        String rootDiskController = controllerInfo.first();
+        String dataDiskController = controllerInfo.second();
+        String scsiDiskController = null; //If any of the controller provided is SCSI then return it's sub-type.
+
+        if (isIdeController(rootDiskController) && isIdeController(dataDiskController)) {
+            //Default controllers would exist
+            return null;
+        } else if (isIdeController(rootDiskController) || isIdeController(dataDiskController)) {
+            // One IDE controller exists. Allowed.
+            if (isIdeController(rootDiskController)) {
+                scsiDiskController = dataDiskController;
+            } else {
+                scsiDiskController = rootDiskController;
+            }
+        } else if (DiskControllerType.getType(rootDiskController) != DiskControllerType.getType(dataDiskController)) {
+            // ROOT and DATA controllers having different types of SCSI controllers. Not allowed.
+            throw new CloudRuntimeException("ROOT [" + rootDiskController + "] and DATA [" + dataDiskController
+                    + "] controllers having different types of SCSI controllers. Not allowed.");
+        } else {
+            // Both are SCSI controllers.
+            scsiDiskController = rootDiskController;
+        }
+        return scsiDiskController;
+    }
+
+    public static boolean isIdeController(String controller) {
+        return DiskControllerType.getType(controller) == DiskControllerType.ide;
+    }
+
 }

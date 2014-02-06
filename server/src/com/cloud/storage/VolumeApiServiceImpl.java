@@ -161,6 +161,7 @@ import com.cloud.vm.VMInstanceVO;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.VirtualMachineManager;
+import com.cloud.vm.VmDetailConstants;
 import com.cloud.vm.VmWork;
 import com.cloud.vm.VmWorkConstants;
 import com.cloud.vm.VmWorkJobHandler;
@@ -2069,6 +2070,9 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                 details.put(DiskTO.CHAP_TARGET_USERNAME, chapInfo.getTargetUsername());
                 details.put(DiskTO.CHAP_TARGET_SECRET, chapInfo.getTargetSecret());
             }
+            // Fetch disk controller for this VM from VM's details, which comes from previous implementation OR template detail if previous detail is non-existent.
+            String diskController = vm.getDetail(VmDetailConstants.DATA_DISK_CONTROLLER);
+            cmd.setDiskController(diskController);
 
             try {
                 answer = (AttachAnswer)_agentMgr.send(hostId, cmd);

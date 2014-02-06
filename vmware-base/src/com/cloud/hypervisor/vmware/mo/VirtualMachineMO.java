@@ -55,12 +55,15 @@ import com.vmware.vim25.OptionValue;
 import com.vmware.vim25.OvfCreateDescriptorParams;
 import com.vmware.vim25.OvfCreateDescriptorResult;
 import com.vmware.vim25.OvfFile;
+import com.vmware.vim25.ParaVirtualSCSIController;
 import com.vmware.vim25.PropertyFilterSpec;
 import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.TraversalSpec;
+import com.vmware.vim25.VirtualBusLogicController;
 import com.vmware.vim25.VirtualCdrom;
 import com.vmware.vim25.VirtualCdromIsoBackingInfo;
 import com.vmware.vim25.VirtualCdromRemotePassthroughBackingInfo;
+import com.vmware.vim25.VirtualController;
 import com.vmware.vim25.VirtualDevice;
 import com.vmware.vim25.VirtualDeviceBackingInfo;
 import com.vmware.vim25.VirtualDeviceConfigSpec;
@@ -80,6 +83,7 @@ import com.vmware.vim25.VirtualEthernetCardDistributedVirtualPortBackingInfo;
 import com.vmware.vim25.VirtualHardwareOption;
 import com.vmware.vim25.VirtualIDEController;
 import com.vmware.vim25.VirtualLsiLogicController;
+import com.vmware.vim25.VirtualLsiLogicSASController;
 import com.vmware.vim25.VirtualMachineCloneSpec;
 import com.vmware.vim25.VirtualMachineConfigInfo;
 import com.vmware.vim25.VirtualMachineConfigOption;
@@ -1083,7 +1087,27 @@ public class VirtualMachineMO extends BaseMO {
         return Integer.parseInt(value);
     }
 
-	public String attachDisk(String[] vmdkDatastorePathChain, ManagedObjectReference morDs) throws Exception {
+    public void updateVmdkAdapter(String vmdkFileName, String newAdapterType) throws Exception {
+        Pair<VmdkFileDescriptor, byte[]> vmdkInfo = getVmdkFileInfo(vmdkFileName);
+        VmdkFileDescriptor vmdkFileDescriptor = vmdkInfo.first();
+
+        boolean isVmfsSparseFile = vmdkFileDescriptor.isVmfsSparseFile();
+        if (!isVmfsSparseFile) {
+            String currentAdapterType = vmdkFileDescriptor.getAdapterType();
+            if (!currentAdapterType.equalsIgnoreCase(newAdapterType)) {
+                s_logger.info("Updating AdapterType for VMDK file " + vmdkFileName);
+                Pair<DatacenterMO, String> dcInfo = getOwnerDatacenter();
+                byte[] newVmdkContent = vmdkFileDescriptor.changeVmdkAdapterType(vmdkInfo.second(), newAdapterType);
+                String vmdkUploadUrl = getContext().composeDatastoreBrowseUrl(dcInfo.first().getName(), vmdkFileName);
+
+                getContext().uploadResourceContent(vmdkUploadUrl, newVmdkContent);
+                s_logger.info("Updated VMDK file " + vmdkFileName);
+
+            }
+        }
+    }
+
+	public String attachDisk(String[] vmdkDatastorePathChain, ManagedObjectReference morDs, String diskController) throws Exception {
 
 		if(s_logger.isTraceEnabled())
 			s_logger.trace("vCenter API trace - attachDisk(). target MOR: " + _mor.getValue() + ", vmdkDatastorePath: "
@@ -1091,11 +1115,13 @@ public class VirtualMachineMO extends BaseMO {
         int controllerKey = 0;
         int unitNumber = 0;
 
-		VirtualDevice newDisk = VmwareHelper.prepareDiskDevice(this, null, getScsiDeviceControllerKey(),
+        VirtualDevice newDisk = VmwareHelper.prepareDiskDevice(this, null, getScsiDiskControllerKey(diskController),
 			vmdkDatastorePathChain, morDs, -1, 1);
         controllerKey = newDisk.getControllerKey();
         unitNumber = newDisk.getUnitNumber();
-
+        VirtualDiskFlatVer2BackingInfo backingInfo = (VirtualDiskFlatVer2BackingInfo)newDisk.getBacking();
+        String vmdkFileName = backingInfo.getFileName();
+        updateVmdkAdapter(vmdkFileName, DiskControllerType.getType(diskController).toString());
 	    VirtualMachineConfigSpec reConfigSpec = new VirtualMachineConfigSpec();
 	    VirtualDeviceConfigSpec deviceConfigSpec = new VirtualDeviceConfigSpec();
 
@@ -1139,13 +1165,44 @@ public class VirtualMachineMO extends BaseMO {
 
         if (devices != null && devices.size() > 0) {
             for (VirtualDevice device : devices) {
-                if (device instanceof VirtualLsiLogicController && device.getKey() == controllerKey) {
-                    return ((VirtualLsiLogicController)device).getBusNumber();
+                if (device instanceof VirtualController && device.getKey() == controllerKey) {
+                    return ((VirtualController)device).getBusNumber();
                 }
             }
         }
         throw new Exception("SCSI Controller with key " + controllerKey + " is Not Found");
 
+    }
+
+    public void attachDisk(String[] vmdkDatastorePathChain, ManagedObjectReference morDs) throws Exception {
+
+        if (s_logger.isTraceEnabled())
+            s_logger.trace("vCenter API trace - attachDisk(). target MOR: " + _mor.getValue() + ", vmdkDatastorePath: "
+                    + new Gson().toJson(vmdkDatastorePathChain) + ", datastore: " + morDs.getValue());
+
+        VirtualDevice newDisk = VmwareHelper.prepareDiskDevice(this, null, getScsiDeviceControllerKey(),
+                vmdkDatastorePathChain, morDs, -1, 1);
+        VirtualMachineConfigSpec reConfigSpec = new VirtualMachineConfigSpec();
+        VirtualDeviceConfigSpec deviceConfigSpec = new VirtualDeviceConfigSpec();
+
+        deviceConfigSpec.setDevice(newDisk);
+        deviceConfigSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+
+        reConfigSpec.getDeviceChange().add(deviceConfigSpec);
+
+        ManagedObjectReference morTask = _context.getService().reconfigVMTask(_mor, reConfigSpec);
+        boolean result = _context.getVimClient().waitForTask(morTask);
+
+        if (!result) {
+            if (s_logger.isTraceEnabled())
+                s_logger.trace("vCenter API trace - attachDisk() done(failed)");
+            throw new Exception("Failed to attach disk due to " + TaskMO.getTaskFailureInfo(_context, morTask));
+        }
+
+        _context.waitForTaskProgressDone(morTask);
+
+        if (s_logger.isTraceEnabled())
+            s_logger.trace("vCenter API trace - attachDisk() done(successfully)");
     }
 
 	public void attachDisk(Pair<String, ManagedObjectReference>[] vmdkDatastorePathChain, int controllerKey) throws Exception {
@@ -1936,6 +1993,124 @@ public class VirtualMachineMO extends BaseMO {
 		}
 	}
 
+    public int getPvScsiDeviceControllerKeyNoException() throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof ParaVirtualSCSIController) {
+                    return device.getKey();
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    public int getPvScsiDeviceControllerKey() throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof ParaVirtualSCSIController) {
+                    return device.getKey();
+                }
+            }
+        }
+
+        assert (false);
+        throw new Exception("VMware Paravirtual SCSI Controller Not Found");
+    }
+
+    public void ensurePvScsiDeviceController(int requiredNumScsiControllers, int availableBusNum) throws Exception {
+        VirtualMachineConfigSpec vmConfig = new VirtualMachineConfigSpec();
+
+        int busNum = availableBusNum;
+        while (busNum < requiredNumScsiControllers) {
+            ParaVirtualSCSIController scsiController = new ParaVirtualSCSIController();
+
+            scsiController.setSharedBus(VirtualSCSISharing.NO_SHARING);
+            scsiController.setBusNumber(busNum);
+            scsiController.setKey(busNum - VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+            VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
+            scsiControllerSpec.setDevice(scsiController);
+            scsiControllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+
+            vmConfig.getDeviceChange().add(scsiControllerSpec);
+            busNum++;
+        }
+
+        if (configureVm(vmConfig)) {
+            throw new Exception("Unable to add Scsi controllers to the VM " + this.getName());
+        } else {
+            s_logger.info("Successfully added " + requiredNumScsiControllers + " SCSI controllers.");
+        }
+    }
+
+    public String getRecommendedDiskController(String guestOsId) throws Exception {
+        String recommendedController;
+        GuestOsDescriptor guestOsDescriptor;
+        String guestId = guestOsId;
+
+        if (guestId == null) {
+            guestId = getGuestId();
+        }
+
+        guestOsDescriptor = getGuestOsDescriptor(guestId);
+
+        recommendedController = guestOsDescriptor.getRecommendedDiskController();
+
+        // By-pass auto detected PVSCSI controller to use LsiLogic Parallel instead
+        if (DiskControllerType.getType(recommendedController) == DiskControllerType.pvscsi) {
+            recommendedController = DiskControllerType.lsilogic.toString();
+        }
+
+        return recommendedController;
+    }
+
+    public boolean isPvScsiSupported() throws Exception {
+        int virtualHardwareVersion;
+
+        virtualHardwareVersion = getVirtualHardwareVersion();
+
+        // Check if virtual machine is using hardware version 7 or later.
+        if (virtualHardwareVersion < 7) {
+            s_logger.error("The virtual hardware version of the VM is " + virtualHardwareVersion
+                    + ", which doesn't support PV SCSI controller type for virtual harddisks. Please upgrade this VM's virtual hardware version to 7 or later.");
+            return false;
+        }
+        return true;
+    }
+
+    // Would be useful if there exists multiple sub types of SCSI controllers per VM are supported in CloudStack f
+    public int getScsiDiskControllerKey(String diskController) throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if ((DiskControllerType.getType(diskController) == DiskControllerType.lsilogic || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof VirtualLsiLogicController) {
+                    return ((VirtualLsiLogicController)device).getKey();
+                } else if ((DiskControllerType.getType(diskController) == DiskControllerType.lsisas1068 || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof VirtualLsiLogicSASController) {
+                    return ((VirtualLsiLogicSASController)device).getKey();
+                } else if ((DiskControllerType.getType(diskController) == DiskControllerType.pvscsi || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof ParaVirtualSCSIController) {
+                    return ((ParaVirtualSCSIController)device).getKey();
+                } else if ((DiskControllerType.getType(diskController) == DiskControllerType.buslogic || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof VirtualBusLogicController) {
+                    return ((VirtualBusLogicController)device).getKey();
+                }
+            }
+        }
+
+        assert (false);
+        throw new Exception(diskController + " Controller Not Found");
+    }
+
 	public int getNextScsiDiskDeviceNumber() throws Exception {
 		int scsiControllerKey = getScsiDeviceControllerKey();
 		int deviceNumber = getNextDeviceNumber(scsiControllerKey);
@@ -1951,7 +2126,7 @@ public class VirtualMachineMO extends BaseMO {
 
 	    if(devices != null && devices.size() > 0) {
 	    	for(VirtualDevice device : devices) {
-                if(device instanceof VirtualLsiLogicController) {
+                if (device instanceof VirtualSCSIController) {
                     return device.getKey();
                 }
             }
@@ -1960,6 +2135,21 @@ public class VirtualMachineMO extends BaseMO {
 	    assert(false);
 	    throw new Exception("SCSI Controller Not Found");
 	}
+
+    public int getGenericScsiDeviceControllerKeyNoException() throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof VirtualSCSIController) {
+                    return device.getKey();
+                }
+            }
+        }
+
+        return -1;
+    }
 
 	public int getScsiDeviceControllerKeyNoException() throws Exception {
 	    List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
@@ -1997,12 +2187,12 @@ public class VirtualMachineMO extends BaseMO {
 		}
 	}
 
-    public void ensureScsiDeviceControllers(int count) throws Exception {
+    public void ensureScsiDeviceControllers(int count, int availableBusNum) throws Exception {
         int scsiControllerKey = getScsiDeviceControllerKeyNoException();
         if (scsiControllerKey < 0) {
             VirtualMachineConfigSpec vmConfig = new VirtualMachineConfigSpec();
 
-            int busNum = 0;
+            int busNum = availableBusNum;
             while (busNum < count) {
                 VirtualLsiLogicController scsiController = new VirtualLsiLogicController();
 
@@ -2669,6 +2859,10 @@ public class VirtualMachineMO extends BaseMO {
         return (Long)_context.getVimClient().getDynamicProperty(_mor, "config.hotPlugMemoryLimit");
     }
 
+    public String getGuestId() throws Exception {
+        return (String)_context.getVimClient().getDynamicProperty(_mor, "config.guestId");
+    }
+
     public int getCoresPerSocket() throws Exception {
         // number of cores per socket is 1 in case of ESXi. It's not defined explicitly and the property is support since vSphere API 5.0.
         String apiVersion = HypervisorHostHelper.getVcenterApiVersion(_context);
@@ -2743,5 +2937,135 @@ public class VirtualMachineMO extends BaseMO {
             virtualHardwareSupportsMemoryHotAdd = true;
         }
         return guestOsSupportsMemoryHotAdd && virtualHardwareSupportsMemoryHotAdd;
+    }
+
+    public void ensureLsiLogicSasDeviceControllers(int count, int availableBusNum) throws Exception {
+        int scsiControllerKey = getLsiLogicSasDeviceControllerKeyNoException();
+        if (scsiControllerKey < 0) {
+            VirtualMachineConfigSpec vmConfig = new VirtualMachineConfigSpec();
+
+            int busNum = availableBusNum;
+            while (busNum < count) {
+                VirtualLsiLogicSASController scsiController = new VirtualLsiLogicSASController();
+                scsiController.setSharedBus(VirtualSCSISharing.NO_SHARING);
+                scsiController.setBusNumber(busNum);
+                scsiController.setKey(busNum - VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+                VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
+                scsiControllerSpec.setDevice(scsiController);
+                scsiControllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+
+                vmConfig.getDeviceChange().add(scsiControllerSpec);
+                busNum++;
+            }
+            if (configureVm(vmConfig)) {
+                throw new Exception("Unable to add Scsi controller of type LsiLogic SAS.");
+            }
+        }
+
+    }
+
+    private int getLsiLogicSasDeviceControllerKeyNoException() throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof VirtualLsiLogicSASController) {
+                    return device.getKey();
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    public void ensureBusLogicDeviceControllers(int count, int availableBusNum) throws Exception {
+        int scsiControllerKey = getBusLogicDeviceControllerKeyNoException();
+        if (scsiControllerKey < 0) {
+            VirtualMachineConfigSpec vmConfig = new VirtualMachineConfigSpec();
+
+            int busNum = availableBusNum;
+            while (busNum < count) {
+                VirtualBusLogicController scsiController = new VirtualBusLogicController();
+
+                scsiController.setSharedBus(VirtualSCSISharing.NO_SHARING);
+                scsiController.setBusNumber(busNum);
+                scsiController.setKey(busNum - VmwareHelper.MAX_SCSI_CONTROLLER_COUNT);
+                VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
+                scsiControllerSpec.setDevice(scsiController);
+                scsiControllerSpec.setOperation(VirtualDeviceConfigSpecOperation.ADD);
+
+                vmConfig.getDeviceChange().add(scsiControllerSpec);
+                busNum++;
+            }
+
+            if (configureVm(vmConfig)) {
+                throw new Exception("Unable to add Scsi BusLogic controllers to the VM " + this.getName());
+            } else {
+                s_logger.info("Successfully added " + count + " SCSI BusLogic controllers.");
+            }
+        }
+    }
+
+    private int getBusLogicDeviceControllerKeyNoException() throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof VirtualBusLogicController) {
+                    return device.getKey();
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    public Ternary<Integer, Integer, DiskControllerType> getScsiControllerInfo() throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        int scsiControllerCount = 0;
+        int busNum = -1;
+        DiskControllerType controllerType = DiskControllerType.lsilogic;
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof VirtualSCSIController) {
+                    scsiControllerCount++;
+                    int deviceBus = ((VirtualSCSIController)device).getBusNumber();
+                    if (busNum < deviceBus) {
+                        busNum = deviceBus;
+                    }
+                    if (device instanceof VirtualLsiLogicController) {
+                        controllerType = DiskControllerType.lsilogic;
+                    } else if (device instanceof VirtualLsiLogicSASController) {
+                        controllerType = DiskControllerType.lsisas1068;
+                    } else if (device instanceof VirtualBusLogicController) {
+                        controllerType = DiskControllerType.buslogic;
+                    } else if (device instanceof ParaVirtualSCSIController) {
+                        controllerType = DiskControllerType.pvscsi;
+                    }
+                }
+            }
+        }
+
+        return new Ternary<Integer, Integer, DiskControllerType>(scsiControllerCount, busNum, controllerType);
+    }
+
+    public int getNumberOfVirtualDisks() throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().getDynamicProperty(_mor, "config.hardware.device");
+
+        s_logger.info("Counting disk devices attached to VM " + this.getVmName());
+        int count = 0;
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if (device instanceof VirtualDisk) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 }
