@@ -278,7 +278,7 @@ public class XenServer56Resource extends CitrixResourceBase {
         return cmds;
     }
 
-    private boolean check_heartbeat(String host_uuid) {
+    protected boolean check_heartbeat(String host_uuid) {
         com.trilead.ssh2.Connection sshConnection = new com.trilead.ssh2.Connection(_host.ip, 22);
         try {
             sshConnection.connect(null, 60000, 60000);
