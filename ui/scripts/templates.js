@@ -63,10 +63,10 @@
 
                     advSearchFields: {
                         name: {
-                            label: 'Name'
+                            label: 'label.name'
                         },
                         zoneid: {
-                            label: 'Zone',
+                            label: 'label.zone',
                             select: function(args) {
                                 $.ajax({
                                     url: createURL('listZones'),
@@ -692,14 +692,14 @@
   		                                                        	 //do nothing                                                        	 
   		                                                         } else if (result.jobstatus == 2) {
   		                                                        	 cloudStack.dialog.notice({
-  		                                                                 message: "Failed to update XenServer Tools Version 6.1+ field. Error: " + _s(result.jobresult.errortext)
+  		                                                                 message: "message.XSTools61plus.update.failed" + " " + _s(result.jobresult.errortext)
   		                                                             });                                                             
   		                                                         }
   		                                                     }
   		                                                 },
   		                                                 error: function(XMLHttpResponse) {                                                    
   		                                                     cloudStack.dialog.notice({
-  		                                                         message: "Failed to update XenServer Tools Version 6.1+ field. Error: " + parseXMLHttpResponse(XMLHttpResponse)
+  		                                                         message: "message.XSTools61plus.update.failed" + " " + parseXMLHttpResponse(XMLHttpResponse)
   		                                                     });                                                          
   		                                                 }
   		                                             });
@@ -735,10 +735,10 @@
                                 label: 'label.action.copy.template',
                                 messages: {
                                     confirm: function(args) {
-                                        return 'Are you sure you want to copy template?';
+                                        return 'message.copy.template.confirm';
                                     },
                                     success: function(args) {
-                                        return 'Template is being copied.';
+                                        return 'message.template.copying';
                                     },
                                     notification: function(args) {
                                         return 'label.action.copy.template';
@@ -823,7 +823,7 @@
                                         return 'message.action.download.template';
                                     },
                                     notification: function(args) {
-                                        return 'Downloading template';
+                                        return 'message.action.downloading.template';
                                     },
                                     complete: function(args) {
                                         var url = args.url;
@@ -926,7 +926,7 @@
                                     }
                                 }, {
                                     id: {
-                                        label: 'ID'
+                                        label: 'label.id'
                                     },
                                     zonename: {
                                         label: 'label.zone.name'
@@ -1336,10 +1336,10 @@
 
                     advSearchFields: {
                         name: {
-                            label: 'Name'
+                            label: 'label.name'
                         },
                         zoneid: {
-                            label: 'Zone',
+                            label: 'label.zone',
                             select: function(args) {
                                 $.ajax({
                                     url: createURL('listZones'),
@@ -1362,10 +1362,10 @@
                             }
                         },
                         tagKey: {
-                            label: 'Tag Key'
+                            label: 'label.tag.key'
                         },
                         tagValue: {
-                            label: 'Tag Value'
+                            label: 'label.tag.value'
                         }
                     },
 
