@@ -31,6 +31,8 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import javax.persistence.EntityExistsException;
 
+import com.xensource.xenapi.*;
+import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import org.apache.log4j.Logger;
 import org.apache.xmlrpc.XmlRpcException;
 
@@ -92,12 +94,9 @@ import com.cloud.utils.db.QueryBuilder;
 import com.cloud.utils.db.SearchCriteria.Op;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.exception.HypervisorVersionChangedException;
-import com.xensource.xenapi.Connection;
-import com.xensource.xenapi.Host;
-import com.xensource.xenapi.Pool;
-import com.xensource.xenapi.Session;
 import com.xensource.xenapi.Types.SessionAuthenticationFailed;
 import com.xensource.xenapi.Types.XenAPIException;
+import org.apache.xpath.operations.Bool;
 
 @Local(value=Discoverer.class)
 public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, Listener, ResourceStateAdapter {
@@ -112,7 +111,8 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
     protected String _guestNic;
     protected boolean _setupMultipath;
     protected String _instance;
-    private String xs620snapshothotfix = "Xenserver-Vdi-Copy-HotFix";
+    private String xsHotFixFox = "996dd2e7-ad95-49cc-a0be-2c9adc4dfb0b";
+    private boolean xsHotFixFoxEnabled = false;
 
     @Inject protected AlertManager _alertMgr;
     @Inject protected AgentManager _agentMgr;
@@ -144,9 +144,8 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         }
     }
 
-    protected boolean xenserverHotFixEnabled() {
-        //temporary fix, we should call xenserver api to get the hot fix is enabled or not.
-        return Boolean.parseBoolean(_configDao.getValue(Config.XenServerHotFix.name()));
+    protected boolean xenserverHotFixFoxEnabled() {
+        return xsHotFixFoxEnabled;
     }
 
     @Override
@@ -200,6 +199,12 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             Pool.Record pr = pool.getRecord(conn);
             String poolUuid = pr.uuid;
             Map<Host, Host.Record> hosts = Host.getAllRecords(conn);
+
+            HostPatch hostPatch = HostPatch.getByUuid(conn, xsHotFixFox);
+            if (hostPatch != null) {
+                s_logger.debug("find xenserver hotfix fox");
+                xsHotFixFoxEnabled = true;
+            }
 
             /*set cluster hypervisor type to xenserver*/
             ClusterVO clu = _clusterDao.findById(clusterId);
@@ -266,8 +271,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 	hostOS = record.softwareVersion.get("platform_name");
                 }
 
-                //Boolean xs620hotfix = record.tags.contains(xs620snapshothotfix);
-                Boolean xs620hotfix = xenserverHotFixEnabled();
                 String hostOSVer = prodVersion;
                 String hostKernelVer = record.softwareVersion.get("linux");
 
@@ -297,8 +300,9 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 details.put(HostInfo.HOST_OS_VERSION, hostOSVer);
                 details.put(HostInfo.HOST_OS_KERNEL_VERSION, hostKernelVer);
                 details.put(HostInfo.HYPERVISOR_VERSION, xenVersion);
-                details.put(HostInfo.XS620_SNAPSHOT_HOTFIX, xs620hotfix.toString());
-
+                if (xsHotFixFoxEnabled) {
+                    details.put(XenserverConfigs.XSHotFixVersion, XenserverConfigs.XSHotFixFox);
+                }
                 String privateNetworkLabel = _networkMgr.getDefaultManagementTrafficLabel(dcId, HypervisorType.XenServer);
                 String storageNetworkLabel = _networkMgr.getDefaultStorageTrafficLabel(dcId, HypervisorType.XenServer);
 
@@ -401,14 +405,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         else if (prodBrand.equals("XenServer") && prodVersion.equals("6.1.0"))
             return new XenServer610Resource();
         else if (prodBrand.equals("XenServer") && prodVersion.equals("6.2.0")) {
-            /*
-            Set<String> tags =record.tags;
-            if (tags.contains(xs620snapshothotfix)) {
-                return new Xenserver625Resource();
-            } else {
-                return new XenServer620Resource();
-            }*/
-            boolean hotfix = xenserverHotFixEnabled();
+            boolean hotfix = xenserverHotFixFoxEnabled();
             if (hotfix) {
                 return new Xenserver625Resource();
             } else {
@@ -565,8 +562,8 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         } else if (prodBrand.equals("XenServer") && prodVersion.equals("6.1.0")) {
             resource = XenServer610Resource.class.getName();
         } else if (prodBrand.equals("XenServer") && prodVersion.equals("6.2.0")) {
-            String hotfix = details.get("Xenserer620HotFix");
-            if (hotfix != null && hotfix.equalsIgnoreCase("Xenserver-Vdi-Copy-HotFix")) {
+            String hotfixversion = details.get(XenserverConfigs.XSHotFixVersion);
+            if (hotfixversion != null && hotfixversion.equalsIgnoreCase(XenserverConfigs.XSHotFixFox)) {
                 resource = Xenserver625Resource.class.getName();
             } else {
                 resource = XenServer620Resource.class.getName();

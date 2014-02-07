@@ -41,6 +41,7 @@ import org.apache.cloudstack.engine.subsystem.api.storage.EndPoint;
 import org.apache.cloudstack.engine.subsystem.api.storage.EndPointSelector;
 import org.apache.cloudstack.engine.subsystem.api.storage.VolumeDataFactory;
 import org.apache.cloudstack.engine.subsystem.api.storage.ZoneScope;
+import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import org.apache.cloudstack.storage.command.CopyCommand;
 import org.apache.cloudstack.storage.command.DettachCommand;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
@@ -142,8 +143,8 @@ public class XenServerGuru extends HypervisorGuruBase implements HypervisorGuru 
                     EndPoint ep = endPointSelector.selectHypervisorHost(new ZoneScope(host.getDataCenterId()));
                     host = hostDao.findById(ep.getId());
                     hostDao.loadDetails(host);
-                    boolean snapshotHotFix = Boolean.parseBoolean(host.getDetail(HostInfo.XS620_SNAPSHOT_HOTFIX));
-                    if (snapshotHotFix) {
+                    String snapshotHotFixVersion = host.getDetail(XenserverConfigs.XSHotFixVersion);
+                    if (snapshotHotFixVersion != null && snapshotHotFixVersion.equalsIgnoreCase(XenserverConfigs.XSHotFixFox)) {
                         return new Pair<Boolean, Long>(Boolean.TRUE, new Long(ep.getId()));
                     }
                 }
