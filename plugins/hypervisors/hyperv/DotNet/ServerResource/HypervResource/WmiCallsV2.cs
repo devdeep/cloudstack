@@ -1812,6 +1812,11 @@ namespace HypervResource
             return null;
         }
 
+        public ComputerSystem.ComputerSystemCollection GetComputerSystemCollection()
+        {
+            return ComputerSystem.GetInstances();
+        }
+
         public Dictionary<String, VmState> GetVmSync(String privateIpAddress)
         {
             List<String> vms = GetVmElementNames();
