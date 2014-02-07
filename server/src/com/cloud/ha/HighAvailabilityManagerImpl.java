@@ -29,12 +29,13 @@ import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.log4j.Logger;
+import org.apache.log4j.NDC;
+
 import org.apache.cloudstack.engine.orchestration.service.VolumeOrchestrationService;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.managed.context.ManagedContext;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
-import org.apache.log4j.Logger;
-import org.apache.log4j.NDC;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.alert.AlertManager;
@@ -46,6 +47,7 @@ import com.cloud.dc.DataCenterVO;
 import com.cloud.dc.HostPodVO;
 import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.dc.dao.HostPodDao;
+import com.cloud.deploy.DeploymentPlanner;
 import com.cloud.deploy.HAPlanner;
 import com.cloud.exception.AgentUnavailableException;
 import com.cloud.exception.ConcurrentOperationException;
@@ -80,7 +82,7 @@ import com.cloud.vm.dao.VMInstanceDao;
  * HighAvailabilityManagerImpl coordinates the HA process. VMs are registered with the HA Manager for HA. The request is stored
  * within a database backed work queue. HAManager has a number of workers that pick up these work items to perform HA on the
  * VMs.
- * 
+ *
  * The HA process goes as follows: 1. Check with the list of Investigators to determine that the VM is no longer running. If a
  * Investigator finds the VM is still alive, the HA process is stopped and the state of the VM reverts back to its previous
  * state. If a Investigator finds the VM is dead, then HA process is started on the VM, skipping step 2. 2. If the list of
@@ -89,7 +91,7 @@ import com.cloud.vm.dao.VMInstanceDao;
  * process of starting VMs. Note that once the VM is marked as stopped, the user may have started the VM himself. 5. VMs that
  * have re-started more than the configured number of times are marked as in Error state and the user is not allowed to restart
  * the VM.
- * 
+ *
  * @config {@table || Param Name | Description | Values | Default || || workers | number of worker threads to spin off to do the
  *         processing | int | 1 || || time.to.sleep | Time to sleep if no work items are found | seconds | 60 || || max.retries
  *         | number of times to retry start | int | 5 || || time.between.failure | Time elapsed between failures before we
@@ -117,7 +119,7 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
     @Inject
     ClusterDetailsDao _clusterDetailsDao;
     long _serverId;
-    
+
     @Inject
     ManagedContext _managedContext;
 
@@ -599,16 +601,10 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
         try {
             work.setStep(Step.Migrating);
             _haDao.update(work.getId(), work);
-            
+
             VMInstanceVO vm = _instanceDao.findById(vmId);
             // First try starting the vm with its original planner, if it doesn't succeed send HAPlanner as its an emergency.
-            boolean result = false;
-            try {
-                _itMgr.migrateAway(vm.getUuid(), srcHostId, null);
-            }catch (InsufficientServerCapacityException e) {
-                s_logger.warn("Failed to deploy vm " + vmId + " with original planner, sending HAPlanner");
-                _itMgr.migrateAway(vm.getUuid(), srcHostId, _haPlanners.get(0));
-            }
+            _itMgr.migrateAway(vm.getUuid(), srcHostId);
             return null;
         } catch (InsufficientServerCapacityException e) {
             s_logger.warn("Insufficient capacity for migrating a VM.");
@@ -922,4 +918,8 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
         return _haTag;
     }
 
+    @Override
+    public DeploymentPlanner getHAPlanner() {
+        return _haPlanners.get(0);
+    }
 }
