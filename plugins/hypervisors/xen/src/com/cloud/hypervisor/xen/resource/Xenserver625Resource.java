@@ -26,6 +26,7 @@ import java.util.Map;
 import javax.ejb.Local;
 
 import org.apache.cloudstack.hypervisor.xenserver.XenServerResourceNewBase;
+import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.StartupRoutingCommand;
@@ -48,7 +49,7 @@ public class Xenserver625Resource extends XenServerResourceNewBase {
     protected void fillHostInfo(Connection conn, StartupRoutingCommand cmd) {
         super.fillHostInfo(conn, cmd);
         Map<String, String> details = cmd.getHostDetails();
-        details.put("Xenserer620HotFix", "Xenserver-Vdi-Copy-HotFix");
+        details.put(XenserverConfigs.XSHotFixVersion, XenserverConfigs.XSHotFixFox);
     }
 
     @Override

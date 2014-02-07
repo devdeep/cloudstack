@@ -142,14 +142,14 @@ namespace HypervResource
         public static HypervResourceControllerConfig config = new HypervResourceControllerConfig();
 
         private static ILog logger = LogManager.GetLogger(typeof(HypervResourceController));
-        private string systemVmIso  = "";
+        private string systemVmIso = "";
         Dictionary<String, String> contextMap = new Dictionary<String, String>();
 
         public static void Initialize()
         {
         }
 
-        public static IWmiCallsV2 wmiCallsV2 { get; set;}
+        public static IWmiCallsV2 wmiCallsV2 { get; set; }
 
         // GET api/HypervResource
         public string Get()
@@ -413,11 +413,11 @@ namespace HypervResource
                 }
 
                 object ansContent = new
-                    {
-                        result = result,
-                        details = details,
-                        contextMap = contextMap
-                    };
+                {
+                    result = result,
+                    details = details,
+                    contextMap = contextMap
+                };
 
                 return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.Answer);
             }
@@ -480,7 +480,7 @@ namespace HypervResource
             }
         }
 
-        
+
         private static JArray ReturnCloudStackTypedJArray(object ansContent, string ansType)
         {
             JObject ansObj = Utils.CreateCloudStackObject(ansType, ansContent);
@@ -994,11 +994,11 @@ namespace HypervResource
             {
                 logger.Info(CloudStackTypes.CleanupNetworkRulesCmd + cmd.ToString());
                 object ansContent = new
-                 {
-                     result = false,
-                     details = "nothing to cleanup in our current implementation",
-                     contextMap = contextMap
-                 };
+                {
+                    result = false,
+                    details = "nothing to cleanup in our current implementation",
+                    contextMap = contextMap
+                };
                 return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.Answer);
             }
         }
@@ -1712,7 +1712,7 @@ namespace HypervResource
                     }
                     else if (poolType == StoragePoolType.Filesystem)
                     {
-                        hostPath = (string)cmd.localPath;;
+                        hostPath = (string)cmd.localPath; ;
                         GetCapacityForLocalPath(hostPath, out capacity, out available);
                         used = capacity - available;
                         result = true;
@@ -2021,7 +2021,7 @@ namespace HypervResource
                 {
                     string vmName = (string)cmd.name;
                     var sys = wmiCallsV2.GetComputerSystem(vmName);
-                    address = "instanceId=" + sys.Name ;
+                    address = "instanceId=" + sys.Name;
                     result = true;
                 }
                 catch (Exception sysEx)
@@ -2039,6 +2039,40 @@ namespace HypervResource
                 };
 
                 return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.GetVncPortAnswer);
+            }
+        }
+
+        // POST api/HypervResource/HostVmStateReportCommand
+        [HttpPost]
+        [ActionName(CloudStackTypes.HostVmStateReportCommand)]
+        public JContainer HostVmStateReportCommand([FromBody]dynamic cmd)
+        {
+            using (log4net.NDC.Push(Guid.NewGuid().ToString()))
+            {
+                logger.Info(CloudStackTypes.HostVmStateReportCommand + cmd.ToString());
+
+                string details = null;
+                Dictionary<string, string>[] hostVmStateReport = null;
+
+                try
+                {
+                    var vmCollection = wmiCallsV2.GetComputerSystemCollection();
+                    hostVmStateReport = new Dictionary<string, string>[vmCollection.Count];
+                    int i = 0;
+                    foreach (ComputerSystem vm in vmCollection)
+                    {
+                        var dict = new Dictionary<string, string>();
+                        dict.Add(vm.ElementName, GetVmState(vm.EnabledState));
+                        hostVmStateReport[i++] = dict;
+                    }
+                }
+                catch (Exception sysEx)
+                {
+                    details = CloudStackTypes.HostVmStateReportCommand + " failed due to " + sysEx.Message;
+                    logger.Error(details, sysEx);
+                }
+
+                return JArray.FromObject(hostVmStateReport);
             }
         }
 
@@ -2070,6 +2104,35 @@ namespace HypervResource
             var defaultSubnet = defaultnic.GetIPProperties().UnicastAddresses[0];
             subnet = defaultSubnet.IPv4Mask.ToString();
             return defaultnic;
+        }
+
+        private static string GetVmState(UInt16 enabledState)
+        {
+            switch (enabledState)
+            {
+                case 0:
+                    return "UNKNOWN";
+                case 2:
+                    return "ENABLED";
+                case 3:
+                    return "DISABLED";
+                case 32768:
+                    return "PAUSED";
+                case 32769:
+                    return "SUSPENDED";
+                case 32770:
+                    return "STARTING";
+                case 32773:
+                    return "SAVING";
+                case 32774:
+                    return "STOPPING";
+                case 32776:
+                    return "PAUSING";
+                case 32777:
+                    return "RESUMING";
+                default:
+                    return "UNKNOWN";
+            }
         }
 
         public static void GetCapacityForLocalPath(string localStoragePath, out long capacityBytes, out long availableBytes)

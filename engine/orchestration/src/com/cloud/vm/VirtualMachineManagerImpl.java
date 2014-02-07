@@ -158,6 +158,7 @@ import com.cloud.resource.ResourceManager;
 import com.cloud.service.ServiceOfferingVO;
 import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.DiskOfferingVO;
+import com.cloud.storage.ScopeType;
 import com.cloud.storage.Storage.ImageFormat;
 import com.cloud.storage.StoragePool;
 import com.cloud.storage.Volume;
@@ -1779,8 +1780,21 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         }
 
         if (fromHost.getClusterId().longValue() != dest.getCluster().getId()) {
-            s_logger.info("Source and destination host are not in same cluster, unable to migrate to host: " + dest.getHost().getId());
-            throw new CloudRuntimeException("Source and destination host are not in same cluster, unable to migrate to host: " + dest.getHost().getId());
+            // This scenario is valid only if all the volumes of VM being migrated are on zone wide storage pools
+            boolean vmOnZoneWideStoragePool = true;
+            List<VolumeVO> vmVolumes = _volsDao.findUsableVolumesForInstance(vm.getId());
+            for (VolumeVO volume : vmVolumes) {
+                StoragePoolVO pool = _storagePoolDao.findById(volume.getPoolId());
+                if (pool.getScope() != ScopeType.ZONE) {
+                    vmOnZoneWideStoragePool = false;
+                    break;
+                }
+            }
+            // If there is no common storage across the clusters then migration attempt should fail.
+            if (!vmOnZoneWideStoragePool) {
+                s_logger.info("Source and destination host are not in same cluster, unable to migrate to host: " + dest.getHost().getId());
+                throw new CloudRuntimeException("Source and destination host are not in same cluster, unable to migrate to host: " + dest.getHost().getId());
+            }
         }
 
         VirtualMachineGuru vmGuru = getVmGuru(vm);
@@ -1938,6 +1952,11 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     volumeToPool.remove(volume);
                 }
             } else {
+                // Not attempting to find a suitable pool on target host, If current pool is accessible at target host.
+                if (_poolHostDao.findByPoolHost(currentPool.getId(), host.getId()) != null) {
+                    s_logger.warn("Volume " + volume.getName() + " will not be migrated as it's current storage pool is accessible on host " + host.getName());
+                    continue;
+                }
                 // Find a suitable pool for the volume. Call the storage pool allocator to find the list of pools.
                 DiskProfile diskProfile = new DiskProfile(volume, diskOffering, profile.getHypervisorType());
                 DataCenterDeployment plan = new DataCenterDeployment(host.getDataCenterId(), host.getPodId(), host.getClusterId(), host.getId(), null, null);
@@ -2063,8 +2082,8 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         // If none of the volumes have to be migrated, fail the call. Administrator needs to make a call for migrating
         // a vm and not migrating a vm with storage.
         if (volumeToPool.isEmpty()) {
-            throw new InvalidParameterValueException("Migration of the vm " + vm + "from host " + srcHost + " to destination host " + destHost +
-                    " doesn't involve migrating the volumes.");
+            throw new InvalidParameterValueException("Migration of the vm " + vm + "from host " + srcHost +
+                    " to destination host " + destHost + " doesn't involve migrating the volumes. Please use migrateVirtualMachine API.");
         }
 
         AlertManager.AlertType alertType = AlertManager.AlertType.ALERT_TYPE_USERVM_MIGRATE;
