@@ -7515,7 +7515,7 @@
                                 	var array1 = [];
                                 	
                                 	// ***** non XenServer (begin) *****
-                                	var hypervisors = ["Hyperv", "KVM", "VMware", "BareMetal", "Ovm", "LXC"];
+                                	var hypervisors = ["Hyperv", "KVM", "VMware", "BareMetal"];
                                 	
                                 	var supportSocketHypervisors = {
                                 		"Hyperv": 1, 
@@ -7587,8 +7587,8 @@
                                 	var currentPage = 1;
                                 	var returnedHostCount = 0;
                                 	
-                                	var returnedHostCountForXenServer = 0;
-                                	var returnedHostCountForXenServer620 = 0;                                 	
+                                	var returnedHostCountForXenServer61x = 0;  //'XenServer 6.1.x and before'
+                                	var returnedHostCountForXenServer620 = 0;  //'XenServer 6.2.0'                               	
                                 	var returnedHostCpusocketsSumForXenServer620 = 0;    
                                 	
                                 	var callListHostsWithPage = function() {                                                		
@@ -7618,7 +7618,7 @@
                                         					returnedHostCpusocketsSumForXenServer620 += items[i].cpusockets;
                                         				} 
                                     				} else {
-                                    					returnedHostCountForXenServer++;
+                                    					returnedHostCountForXenServer61x++;
                                     				}
                                     			}  
                                     			
@@ -7633,8 +7633,8 @@
                                 	callListHostsWithPage();                                	                                                  	
                                 	
                                 	array1.push({
-                                        hypervisor: 'XenServer',
-                                        hosts: returnedHostCountForXenServer,
+                                        hypervisor: 'XenServer 6.1.x and before',
+                                        hosts: returnedHostCountForXenServer61x,
                                         sockets: 'N/A'                                                   
                                     });
                                 	
