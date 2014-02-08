@@ -31,7 +31,6 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import javax.persistence.EntityExistsException;
 
-import com.xensource.xenapi.*;
 import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import org.apache.log4j.Logger;
 import org.apache.xmlrpc.XmlRpcException;
@@ -94,9 +93,13 @@ import com.cloud.utils.db.QueryBuilder;
 import com.cloud.utils.db.SearchCriteria.Op;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.exception.HypervisorVersionChangedException;
+import com.cloud.utils.ssh.SSHCmdHelper;
+import com.xensource.xenapi.Connection;
+import com.xensource.xenapi.Host;
+import com.xensource.xenapi.Pool;
+import com.xensource.xenapi.Session;
 import com.xensource.xenapi.Types.SessionAuthenticationFailed;
 import com.xensource.xenapi.Types.XenAPIException;
-import org.apache.xpath.operations.Bool;
 
 @Local(value=Discoverer.class)
 public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, Listener, ResourceStateAdapter {
@@ -146,6 +149,25 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
 
     protected boolean xenserverHotFixFoxEnabled() {
         return xsHotFixFoxEnabled;
+    }
+
+    protected boolean isPatchEnabled(String hostIp, String userName, String password, String patchUuid) {
+        com.trilead.ssh2.Connection sshConnection = new com.trilead.ssh2.Connection(hostIp, 22);
+        try {
+            sshConnection.connect(null, 60000, 60000);
+            if (!sshConnection.authenticateWithPassword(userName, password)) {
+                return false;
+            }
+
+            String cmd = "xe patch-param-list uuid=" + patchUuid;
+            if (!SSHCmdHelper.sshExecuteCmd(sshConnection, cmd)) {
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            s_logger.warn("Catch exception " + e.toString(), e);
+            return false;
+        }
     }
 
     @Override
@@ -200,11 +222,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             String poolUuid = pr.uuid;
             Map<Host, Host.Record> hosts = Host.getAllRecords(conn);
 
-            HostPatch hostPatch = HostPatch.getByUuid(conn, xsHotFixFox);
-            if (hostPatch != null) {
-                s_logger.debug("find xenserver hotfix fox");
-                xsHotFixFoxEnabled = true;
-            }
+            xsHotFixFoxEnabled = isPatchEnabled(hostname, username, password, xsHotFixFox);
 
             /*set cluster hypervisor type to xenserver*/
             ClusterVO clu = _clusterDao.findById(clusterId);
