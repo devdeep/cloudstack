@@ -2646,7 +2646,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     }
 
     protected CheckHealthAnswer execute(CheckHealthCommand cmd) {
-        boolean result = pingXenServer();
+        boolean result = pingXAPI();
         return new CheckHealthAnswer(cmd, result);
     }
 
