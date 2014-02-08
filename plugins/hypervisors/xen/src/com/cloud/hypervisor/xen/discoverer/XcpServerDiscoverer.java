@@ -93,9 +93,9 @@ import com.cloud.utils.db.QueryBuilder;
 import com.cloud.utils.db.SearchCriteria.Op;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.exception.HypervisorVersionChangedException;
-import com.cloud.utils.ssh.SSHCmdHelper;
 import com.xensource.xenapi.Connection;
 import com.xensource.xenapi.Host;
+import com.xensource.xenapi.HostPatch;
 import com.xensource.xenapi.Pool;
 import com.xensource.xenapi.Session;
 import com.xensource.xenapi.Types.SessionAuthenticationFailed;
@@ -151,25 +151,32 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         return xsHotFixFoxEnabled;
     }
 
-    protected boolean isPatchEnabled(String hostIp, String userName, String password, String patchUuid) {
-        com.trilead.ssh2.Connection sshConnection = new com.trilead.ssh2.Connection(hostIp, 22);
+    protected boolean poolHasHotFix(Connection conn) {
         try {
-            sshConnection.connect(null, 60000, 60000);
-            if (!sshConnection.authenticateWithPassword(userName, password)) {
-                return false;
+            boolean poolHasPatch = true;
+            Map<Host, Host.Record> hosts = Host.getAllRecords(conn);
+            for (Map.Entry<Host, Host.Record> entry : hosts.entrySet()) {
+                Host.Record re = entry.getValue();
+                Set<HostPatch> patches = re.patches;
+                boolean hasPathes = false;
+
+                for(HostPatch patch : patches) {
+                    HostPatch.Record patchRecord = patch.getRecord(conn);
+                    if (patchRecord != null && patchRecord.uuid.equalsIgnoreCase(xsHotFixFox)) {
+                        hasPathes = true;
+                    }
+                }
+                if (!hasPathes) {
+                    poolHasPatch = false;
+                }
             }
 
-            String cmd = "xe patch-param-list uuid=" + patchUuid;
-            if (!SSHCmdHelper.sshExecuteCmd(sshConnection, cmd)) {
-                return false;
-            }
-            return true;
+            return poolHasPatch;
         } catch (Exception e) {
-            s_logger.warn("Catch exception " + e.toString(), e);
+            s_logger.debug("can;t get patches infomation", e);
             return false;
         }
     }
-
     @Override
     public Map<? extends ServerResource, Map<String, String>> find(long dcId, Long podId, Long clusterId, URI url, String username, String password, List<String> hostTags) throws DiscoveryException {
         Map<CitrixResourceBase, Map<String, String>> resources = new HashMap<CitrixResourceBase, Map<String, String>>();
@@ -185,24 +192,24 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             throw new RuntimeException(msg);
         }
 
-		if (podId == null) {
-			String msg = "must specify pod Id when add host";
-			s_logger.debug(msg);
-			throw new RuntimeException(msg);
-		}
+        if (podId == null) {
+            String msg = "must specify pod Id when add host";
+            s_logger.debug(msg);
+            throw new RuntimeException(msg);
+        }
 
         ClusterVO cluster = _clusterDao.findById(clusterId);
         if(cluster == null || cluster.getHypervisorType() != HypervisorType.XenServer) {
-        	if(s_logger.isInfoEnabled())
+            if(s_logger.isInfoEnabled())
                 s_logger.info("invalid cluster id or cluster is not for XenServer hypervisors");
-    		return null;
+            return null;
         }
 
         try {
             List<HostVO> eHosts = _resourceMgr.listAllHostsInCluster(clusterId);
             if( eHosts.size() > 0 ) {
-            	HostVO eHost = eHosts.get(0);
-            	_hostDao.loadDetails(eHost);
+                HostVO eHost = eHosts.get(0);
+                _hostDao.loadDetails(eHost);
             }
             String hostname = url.getHost();
             InetAddress ia = InetAddress.getByName(hostname);
@@ -221,8 +228,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             Pool.Record pr = pool.getRecord(conn);
             String poolUuid = pr.uuid;
             Map<Host, Host.Record> hosts = Host.getAllRecords(conn);
-
-            xsHotFixFoxEnabled = isPatchEnabled(hostname, username, password, xsHotFixFox);
+            xsHotFixFoxEnabled = poolHasHotFix(conn);
 
             /*set cluster hypervisor type to xenserver*/
             ClusterVO clu = _clusterDao.findById(clusterId);
@@ -233,7 +239,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 if( clusterHosts != null && clusterHosts.size() > 0) {
                     if (!clu.getGuid().equals(poolUuid)) {
                         String msg = "Please join the host " +  hostIp + " to XS pool  "
-                        		+ clu.getGuid() + " through XC/XS before adding it through CS UI";
+                                + clu.getGuid() + " through XC/XS before adding it through CS UI";
                         s_logger.warn(msg);
                         throw new DiscoveryException(msg);
                     }
@@ -254,7 +260,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             poolUuid = clu.getGuid();
             _clusterDao.update(clusterId, clu);
 
-
             if (_checkHvm) {
                 for (Map.Entry<Host, Host.Record> entry : hosts.entrySet()) {
                     Host.Record record = entry.getValue();
@@ -262,8 +267,8 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                     boolean support_hvm = false;
                     for ( String capability : record.capabilities ) {
                         if(capability.contains("hvm")) {
-                           support_hvm = true;
-                           break;
+                            support_hvm = true;
+                            break;
                         }
                     }
                     if( !support_hvm ) {
@@ -281,12 +286,12 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
 
                 String prodVersion = record.softwareVersion.get("product_version");
                 if (prodVersion == null) {
-                	prodVersion = record.softwareVersion.get("platform_version");
+                    prodVersion = record.softwareVersion.get("platform_version");
                 }
                 String xenVersion = record.softwareVersion.get("xen");
                 String hostOS = record.softwareVersion.get("product_brand");
                 if (hostOS == null) {
-                	hostOS = record.softwareVersion.get("platform_name");
+                    hostOS = record.softwareVersion.get("platform_name");
                 }
 
                 String hostOSVer = prodVersion;
@@ -318,6 +323,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 details.put(HostInfo.HOST_OS_VERSION, hostOSVer);
                 details.put(HostInfo.HOST_OS_KERNEL_VERSION, hostKernelVer);
                 details.put(HostInfo.HYPERVISOR_VERSION, xenVersion);
+
                 if (xsHotFixFoxEnabled) {
                     details.put(XenserverConfigs.XSHotFixVersion, XenserverConfigs.XSHotFixFox);
                 }
@@ -389,19 +395,19 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
     }
 
     protected CitrixResourceBase createServerResource(long dcId, Long podId, Host.Record record) {
-    	String prodBrand = record.softwareVersion.get("product_brand");
-    	if (prodBrand == null) {
-    		prodBrand = record.softwareVersion.get("platform_name").trim();
-    	} else {
-    		prodBrand = prodBrand.trim();
-    	}
+        String prodBrand = record.softwareVersion.get("product_brand");
+        if (prodBrand == null) {
+            prodBrand = record.softwareVersion.get("platform_name").trim();
+        } else {
+            prodBrand = prodBrand.trim();
+        }
 
-    	String prodVersion = record.softwareVersion.get("product_version");
-    	if (prodVersion == null) {
-    		prodVersion = record.softwareVersion.get("platform_version").trim();
-    	} else {
-    		prodVersion = prodVersion.trim();
-    	}
+        String prodVersion = record.softwareVersion.get("product_version");
+        if (prodVersion == null) {
+            prodVersion = record.softwareVersion.get("platform_version").trim();
+        } else {
+            prodVersion = prodVersion.trim();
+        }
 
         // Xen Cloud Platform group of hypervisors
         if (prodBrand.equals("XCP") && (
@@ -484,15 +490,15 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
     }
 
     @Override
-	public boolean matchHypervisor(String hypervisor) {
-    	if(hypervisor == null)
-    		return true;
-    	return Hypervisor.HypervisorType.XenServer.toString().equalsIgnoreCase(hypervisor);
+    public boolean matchHypervisor(String hypervisor) {
+        if(hypervisor == null)
+            return true;
+        return Hypervisor.HypervisorType.XenServer.toString().equalsIgnoreCase(hypervisor);
     }
 
     @Override
-	public Hypervisor.HypervisorType getHypervisorType() {
-    	return Hypervisor.HypervisorType.XenServer;
+    public Hypervisor.HypervisorType getHypervisorType() {
+        return Hypervisor.HypervisorType.XenServer;
     }
 
     @Override
@@ -594,7 +600,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 resource = XenServer56FP1Resource.class.getName();
             }
         } else if (prodBrand.equals("XCP_Kronos")) {
-        	resource = XcpOssResource.class.getName();
+            resource = XcpOssResource.class.getName();
         }
 
         if( resource == null ){
@@ -661,68 +667,68 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         return false;
     }
 
-	@Override
+    @Override
     public HostVO createHostVOForConnectedAgent(HostVO host, StartupCommand[] cmd) {
-	    // TODO Auto-generated method stub
-	    return null;
+        // TODO Auto-generated method stub
+        return null;
     }
 
-	@Override
+    @Override
     public HostVO createHostVOForDirectConnectAgent(HostVO host, StartupCommand[] startup, ServerResource resource, Map<String, String> details,
-            List<String> hostTags) {
-		StartupCommand firstCmd = startup[0];
-		if (!(firstCmd instanceof StartupRoutingCommand)) {
-			return null;
-		}
+                                                    List<String> hostTags) {
+        StartupCommand firstCmd = startup[0];
+        if (!(firstCmd instanceof StartupRoutingCommand)) {
+            return null;
+        }
 
-		StartupRoutingCommand ssCmd = ((StartupRoutingCommand) firstCmd);
-		if (ssCmd.getHypervisorType() != HypervisorType.XenServer) {
-			return null;
-		}
+        StartupRoutingCommand ssCmd = ((StartupRoutingCommand) firstCmd);
+        if (ssCmd.getHypervisorType() != HypervisorType.XenServer) {
+            return null;
+        }
 
-		HostPodVO pod = _podDao.findById(host.getPodId());
-		DataCenterVO dc = _dcDao.findById(host.getDataCenterId());
-		s_logger.info("Host: " + host.getName() + " connected with hypervisor type: " + HypervisorType.XenServer + ". Checking CIDR...");
-		_resourceMgr.checkCIDR(pod, dc, ssCmd.getPrivateIpAddress(), ssCmd.getPrivateNetmask());
-		return _resourceMgr.fillRoutingHostVO(host, ssCmd, HypervisorType.XenServer, details, hostTags);
+        HostPodVO pod = _podDao.findById(host.getPodId());
+        DataCenterVO dc = _dcDao.findById(host.getDataCenterId());
+        s_logger.info("Host: " + host.getName() + " connected with hypervisor type: " + HypervisorType.XenServer + ". Checking CIDR...");
+        _resourceMgr.checkCIDR(pod, dc, ssCmd.getPrivateIpAddress(), ssCmd.getPrivateNetmask());
+        return _resourceMgr.fillRoutingHostVO(host, ssCmd, HypervisorType.XenServer, details, hostTags);
     }
 
-	@Override
+    @Override
     public DeleteHostAnswer deleteHost(HostVO host, boolean isForced, boolean isForceDeleteStorage) throws UnableDeleteHostException {
-		if (host.getType() != com.cloud.host.Host.Type.Routing || host.getHypervisorType() != HypervisorType.XenServer) {
-			return null;
-		}
+        if (host.getType() != com.cloud.host.Host.Type.Routing || host.getHypervisorType() != HypervisorType.XenServer) {
+            return null;
+        }
         _resourceMgr.deleteRoutingHost(host, isForced, isForceDeleteStorage);
-		boolean success = false;
-		if (host.getClusterId() != null) {
-			List<HostVO> hosts = _resourceMgr.listAllUpAndEnabledHosts(com.cloud.host.Host.Type.Routing, host.getClusterId(), host.getPodId(), host.getDataCenterId());
-			for (HostVO thost : hosts) {
-				if (thost.getId() == host.getId()) {
-					continue;
-				}
+        boolean success = false;
+        if (host.getClusterId() != null) {
+            List<HostVO> hosts = _resourceMgr.listAllUpAndEnabledHosts(com.cloud.host.Host.Type.Routing, host.getClusterId(), host.getPodId(), host.getDataCenterId());
+            for (HostVO thost : hosts) {
+                if (thost.getId() == host.getId()) {
+                    continue;
+                }
 
-				long thostId = thost.getId();
-				PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
-				Answer answer = _agentMgr.easySend(thostId, eject);
-				if (answer == null) {
-					continue;
-				}
-			    if (answer.getResult()) {
-					s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " Succeed");
-					success = true;				
-				} else {
-					s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " failed due to " + (answer != null ? answer.getDetails() : "no answer"));
-					success = false;
-				}
-			}
-			if (!success) {
-				String msg = "Unable to eject host " + host.getGuid() + " due to there is no host up in this cluster, please execute xe pool-eject host-uuid="
-				        + host.getGuid() + "in this host " + host.getPrivateIpAddress();
-				s_logger.warn(msg);
-				_alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, host.getDataCenterId(), host.getPodId(), "Unable to eject host " + host.getGuid(), msg);
-			}
-		}
-		return new DeleteHostAnswer(success);
+                long thostId = thost.getId();
+                PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
+                Answer answer = _agentMgr.easySend(thostId, eject);
+                if (answer == null) {
+                    continue;
+                }
+                if (answer.getResult()) {
+                    s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " Succeed");
+                    success = true;
+                } else {
+                    s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " failed due to " + (answer != null ? answer.getDetails() : "no answer"));
+                    success = false;
+                }
+            }
+            if (!success) {
+                String msg = "Unable to eject host " + host.getGuid() + " due to there is no host up in this cluster, please execute xe pool-eject host-uuid="
+                        + host.getGuid() + "in this host " + host.getPrivateIpAddress();
+                s_logger.warn(msg);
+                _alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, host.getDataCenterId(), host.getPodId(), "Unable to eject host " + host.getGuid(), msg);
+            }
+        }
+        return new DeleteHostAnswer(success);
     }
 
     @Override
@@ -738,7 +744,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
 
     @Override
     public boolean stop() {
-    	_resourceMgr.unregisterResourceStateAdapter(this.getClass().getSimpleName());
+        _resourceMgr.unregisterResourceStateAdapter(this.getClass().getSimpleName());
         return super.stop();
     }
 }
