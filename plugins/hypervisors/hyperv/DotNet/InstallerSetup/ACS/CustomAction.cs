@@ -25,6 +25,7 @@ namespace ACS
             String resultsslCertCmd = executePowerShellScript(showSslcertCmd);
             if (resultsslCertCmd.Contains("0.0.0.0:8250"))
             {
+                ShowErrorMessage(" Certificate is already added to port. Please retry after unchecking the checkbox (create and add certificate to port) or delete the certificate from port ", session);
                 return ActionResult.Failure;
             }
             session.Log("Verifying certificate exists or not");
@@ -36,7 +37,7 @@ namespace ACS
             }
             catch (InvalidCastException)
             {
-                session.Log("Checking certificate existence returns invalid response, skipping remaining actions");
+                ShowErrorMessage("Checking certificate existence returns invalid response. Please retry after unchecking the checkbox (create and add certificate to port) and add the certificate manually if not already added", session);
                 return ActionResult.SkipRemainingActions;
             }
 
@@ -58,11 +59,20 @@ namespace ACS
             String addCertToPortCmdResult = executePowerShellScript(addCertToPortCmd);
             if (addCertToPortCmdResult.Contains("failed"))
             {
-                session.Log("Adding certificate to port returns invalid response, skipping remaining actions");
+                ShowErrorMessage("Adding certificate to port returns invalid response. Please retry after unchecking the checkbox (create and add certificate to port) and add the certificate manually if not already added", session);
                 return ActionResult.SkipRemainingActions;
             }
 
             return ActionResult.Success;
+        }
+
+        private static void ShowErrorMessage(string error, Session session)
+        {
+            Record record = new Record();
+            record.FormatString = string.Format(error);
+            session.Log(error);
+            session.Message(
+                InstallMessage.Error, record);
         }
 
         [CustomAction]
