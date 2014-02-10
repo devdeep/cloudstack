@@ -18,16 +18,51 @@
 
 function usage() {
  echo ""
- echo "usage: ./package.sh [-p|--pack] [-h|--help] [ARGS]"
+ echo "usage: ./package.sh [-p|--pack] [-h|--help] [-b|--build] [ARGS]"
  echo ""
  echo "The commonly used Arguments are:"
  echo "oss|OSS             To package with only redistributable libraries (default)"
  echo "noredist|NOREDIST   To package with non-redistributable libraries"
+ echo "build   RPM version to build; default is 1"
  echo ""
- echo "Examples: ./package.sh -p|--pack oss|OSS"
+ echo "Examples: ./package.sh -p|--pack oss|OSS -b|build 1"
  echo "          ./package.sh -p|--pack noredist|NOREDIST"
- echo "          ./package.sh (Default OSS)"
+ echo "          ./package.sh (Default pack OSS) (Default build 1)"
  exit 1
+}
+
+function defaultPackaging() {
+CWD=`pwd`
+RPMDIR=$CWD/../../dist/rpmbuild
+PACK_PROJECT=cloudstack
+BUILD_VER=$1
+
+VERSION=`(cd ../../; mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version) | grep '^[0-9]\.'`
+if echo $VERSION | grep SNAPSHOT ; then
+  REALVER=`echo $VERSION | cut -d '-' -f 1`
+  DEFVER="-D_ver $REALVER"
+  DEFPRE="-D_prerelease 1"
+  DEFREL="-D_rel SNAPSHOT"
+else
+  REALVER=$VERSION
+  DEFVER="-D_ver $REALVER"
+  DEFREL="-D_rel $BUILD_VER"
+fi
+
+mkdir -p $RPMDIR/SPECS
+mkdir -p $RPMDIR/BUILD
+mkdir -p $RPMDIR/SRPMS
+mkdir -p $RPMDIR/RPMS
+mkdir -p $RPMDIR/SOURCES/$PACK_PROJECT-$VERSION
+
+(cd ../../; tar -c --exclude .git --exclude dist  .  | tar -C $RPMDIR/SOURCES/$PACK_PROJECT-$VERSION -x )
+(cd $RPMDIR/SOURCES/; tar -czf $PACK_PROJECT-$VERSION.tgz $PACK_PROJECT-$VERSION)
+
+cp cloud.spec $RPMDIR/SPECS
+
+(cd $RPMDIR; rpmbuild --define "_topdir $RPMDIR" "${DEFVER}" "${DEFREL}" ${DEFPRE+"${DEFPRE}"} -ba SPECS/cloud.spec)
+
+exit
 }
 
 function packaging() {
@@ -35,10 +70,8 @@ function packaging() {
 CWD=`pwd`
 RPMDIR=$CWD/../../dist/rpmbuild
 PACK_PROJECT=cloudstack
-if [ -n "$1" ] ; then
-  DEFOSSNOSS="-D_ossnoss $packageval"
-fi
-
+DEFOSSNOSS="-D_ossnoss $packageval"
+BUILD_VER=$1
 
 VERSION=`(cd ../../; mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version) | grep '^[0-9]\.'`
 if echo $VERSION | grep SNAPSHOT ; then
@@ -49,7 +82,7 @@ if echo $VERSION | grep SNAPSHOT ; then
 else
   REALVER=`echo $VERSION`
   DEFVER="-D_ver $REALVER"
-  DEFREL="-D_rel 1"
+  DEFREL="-D_rel $BUILD_VER"
 fi
 
 mkdir -p $RPMDIR/SPECS
@@ -72,7 +105,7 @@ exit
 
 if [ $# -lt 1 ] ; then
 
-	packaging
+	defaultPackaging 1
 
 elif [ $# -gt 0 ] ; then
 
@@ -91,10 +124,21 @@ elif [ $# -gt 0 ] ; then
 	-p | --pack)
 		echo "Doing CloudStack Packaging ....."
 		packageval=$2
+              buildver=$4
+              echo $buildver
 		if [ "$packageval" == "oss" -o "$packageval" == "OSS" ] ; then
-			packaging
+                     if [ $buildver ]; then
+                          defaultPackaging $buildver
+                     else
+                          defaultPackaging 1
+                     fi
+			
 		elif [ "$packageval" == "noredist" -o "$packageval" == "NOREDIST" ] ; then
-			packaging noredist
+                     if [ $buildver ]; then
+                          packaging $buildver
+                     else
+                          packaging 1
+                     fi
 		else
 			echo "Error: Incorrect value provided in package.sh script, Please see help ./package.sh --help|-h for more details."
 			exit 1
@@ -105,8 +149,19 @@ elif [ $# -gt 0 ] ; then
 		usage
 		exit 1
 		;;
+	--)
+		echo "Unrecognized option..."
+		usage
+		exit 1
+		;;
+	-*)
+		echo "Unrecognized option..."
+		usage
+		exit 1
+		;;
 	*)
 		shift
+		break
 		;;
 	esac
 	done

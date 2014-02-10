@@ -229,6 +229,8 @@ mkdir -p ${RPM_BUILD_ROOT}%{_sysconfdir}/%{name}/management
 mkdir -p ${RPM_BUILD_ROOT}%{_localstatedir}/log/%{name}-management
 mkdir -p ${RPM_BUILD_ROOT}%{_datadir}/%{name}-management/util
 cp -r tools/bugtool/* ${RPM_BUILD_ROOT}%{_datadir}/%{name}-management/util
+ln -s /usr/share/%{name}-management/util/cloud-bugtool ${RPM_BUILD_ROOT}/usr/bin/cloud-bugtool 
+
 
 # Specific for tomcat
 mkdir -p ${RPM_BUILD_ROOT}%{_sysconfdir}/%{name}/management/Catalina/localhost/client
@@ -568,6 +570,7 @@ fi
 %attr(0755,root,root) %{_bindir}/%{name}-set-guest-sshkey
 %attr(0755,root,root) %{_bindir}/%{name}-sysvmadm
 %attr(0755,root,root) %{_bindir}/%{name}-setup-encryption
+%attr(0755,root,root) %{_bindir}/cloud-bugtool
 %{_datadir}/%{name}-management/setup/*.sql
 %{_datadir}/%{name}-management/setup/db/*.sql
 %{_datadir}/%{name}-management/setup/*.sh
