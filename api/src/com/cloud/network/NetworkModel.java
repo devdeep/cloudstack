@@ -275,4 +275,6 @@ public interface NetworkModel {
     boolean isNetworkReadyForGc(long networkId);
 
     boolean getNetworkEgressDefaultPolicy(Long networkId);
+
+    boolean isSharedNetworkWithServices(Network network);
 }

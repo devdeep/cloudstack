@@ -49,6 +49,7 @@ import com.cloud.dc.VlanVO;
 import com.cloud.dc.dao.DataCenterDao;
 import com.cloud.dc.dao.PodVlanMapDao;
 import com.cloud.dc.dao.VlanDao;
+import com.cloud.dc.DataCenter.NetworkType;
 import com.cloud.domain.DomainVO;
 import com.cloud.domain.dao.DomainDao;
 import com.cloud.exception.InsufficientAddressCapacityException;
@@ -2213,4 +2214,29 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel {
             throw ex;
         }
     }
+
+    @Override
+    public boolean isSharedNetworkWithServices(Network network) {
+        assert (network != null);
+        DataCenter zone = _entityMgr.findById(DataCenter.class, network.getDataCenterId());
+        if (network.getGuestType() == Network.GuestType.Shared && zone.getNetworkType() == NetworkType.Advanced &&
+                isSharedNetworkOfferingWithServices(network.getNetworkOfferingId())) {
+            return true;
+        }
+        return false;
+    }
+
+    protected boolean isSharedNetworkOfferingWithServices(long networkOfferingId) {
+        NetworkOfferingVO networkOffering = _networkOfferingDao.findById(networkOfferingId);
+        if ((networkOffering.getGuestType() == Network.GuestType.Shared) &&
+                (areServicesSupportedByNetworkOffering(networkOfferingId, Service.SourceNat) ||
+                        areServicesSupportedByNetworkOffering(networkOfferingId, Service.StaticNat) ||
+                        areServicesSupportedByNetworkOffering(networkOfferingId, Service.Firewall) ||
+                        areServicesSupportedByNetworkOffering(networkOfferingId, Service.PortForwarding) || areServicesSupportedByNetworkOffering(
+                        networkOfferingId, Service.Lb))) {
+            return true;
+        }
+        return false;
+    }
+
 }

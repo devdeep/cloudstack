@@ -317,6 +317,11 @@ public class DirectNetworkGuru extends AdapterBase implements NetworkGuru {
     @Override
     @DB
     public boolean trash(Network network, NetworkOffering offering) {
+
+        if (_networkModel.isSharedNetworkWithServices(network)) {
+            return true;
+        }
+
         //Have to remove all placeholder nics
         final List<NicVO> nics = _nicDao.listPlaceholderNicsByNetworkId(network.getId());
         Transaction.execute(new TransactionCallbackNoReturn() {
