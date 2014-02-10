@@ -769,28 +769,28 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
 
         if (vm.getState() == State.Running && vm.getHostId() != null) {
-            //start router if not already running
-            try {
-                //list all nics of vm
-                List<NicVO> nics = _nicDao.listByVmId(vmId);
-                for(NicVO nic : nics) {
-                    //list all nics each vm network contains
-                    List<NicVO> networkNics = _nicDao.listByNetworkId(nic.getNetworkId());
-                    for(NicVO networkNic : networkNics) {
-                        if(networkNic.getVmType() == VirtualMachine.Type.DomainRouter) {
-                            Long routerId = networkNic.getInstanceId();
+            DataCenterVO dc = _dcDao.findById(vm.getDataCenterId());
+            if (dc.getNetworkType() == DataCenter.NetworkType.Advanced) {
+                //start router if not already running
+                try {
+                    //list all nics of vm
+                    List<NicVO> nics = _nicDao.listByVmId(vmId);
+                    for(NicVO nic : nics) {
+                        NicVO routerNic =_nicDao.findByNetworkIdAndType(nic.getNetworkId(), VirtualMachine.Type.DomainRouter);
+                        if(routerNic != null && routerNic.getReservationStrategy() != Nic.ReservationStrategy.PlaceHolder) {
+                            long routerId = routerNic.getInstanceId();
                             DomainRouterVO router = _routerDao.findById(routerId);
                             //if router is not running try to start it
                             if (router.getState() != State.Running) {
-                                s_logger.warn("Found router with id " + routerId + " in " + router.getState() + " state");
-                                s_logger.debug("Trying to start router with id " + routerId + " in network " + networkNic.getNetworkId());
+                                s_logger.info("Found router with id " + routerId + " in " + router.getState() + " state");
+                                s_logger.warn("Trying to start virtual router with id " + routerId + " due to guestvm " + vm.getInstanceName() + " restart");
                                 _virtualNetAppliance.startRouter(routerId,true);
                             }
                         }
                     }
+                } catch (ConcurrentOperationException e) {
+                    throw new CloudRuntimeException("Concurrent operations on starting router. " + e);
                 }
-            } catch (ConcurrentOperationException e) {
-                throw new CloudRuntimeException("Concurrent operations on starting router. " + e);
             }
             collectVmDiskStatistics(vm);
             _itMgr.reboot(vm.getUuid(), null);
