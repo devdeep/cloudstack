@@ -533,7 +533,7 @@ PortForwardingServiceProvider, IpDeployer, JuniperSRXFirewallElementService, Sta
             s_logger.warn("SRX must be used as Firewall Service Provider in the network");
             return false;
         }
-        if (services.contains(Service.Firewall) ^ services.contains(Services.SourceNat)) {
+        if (services.contains(Service.Firewall) ^ services.contains(Service.SourceNat)) {
             s_logger.warn("SRX must be used as both Firewall and SourceNAT Service Provider in the network.");
             return false;
         }
