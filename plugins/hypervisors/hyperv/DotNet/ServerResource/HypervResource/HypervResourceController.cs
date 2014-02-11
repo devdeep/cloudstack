@@ -2062,7 +2062,7 @@ namespace HypervResource
                     foreach (ComputerSystem vm in vmCollection)
                     {
                         var dict = new Dictionary<string, string>();
-                        dict.Add(vm.ElementName, GetVmState(vm.EnabledState));
+                        dict.Add(vm.ElementName, EnabledState.ToCloudStackPowerState(vm.EnabledState));
                         hostVmStateReport[i++] = dict;
                     }
                 }
@@ -2104,35 +2104,6 @@ namespace HypervResource
             var defaultSubnet = defaultnic.GetIPProperties().UnicastAddresses[0];
             subnet = defaultSubnet.IPv4Mask.ToString();
             return defaultnic;
-        }
-
-        private static string GetVmState(UInt16 enabledState)
-        {
-            switch (enabledState)
-            {
-                case 0:
-                    return "UNKNOWN";
-                case 2:
-                    return "ENABLED";
-                case 3:
-                    return "DISABLED";
-                case 32768:
-                    return "PAUSED";
-                case 32769:
-                    return "SUSPENDED";
-                case 32770:
-                    return "STARTING";
-                case 32773:
-                    return "SAVING";
-                case 32774:
-                    return "STOPPING";
-                case 32776:
-                    return "PAUSING";
-                case 32777:
-                    return "RESUMING";
-                default:
-                    return "UNKNOWN";
-            }
         }
 
         public static void GetCapacityForLocalPath(string localStoragePath, out long capacityBytes, out long availableBytes)
