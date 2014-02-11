@@ -3,16 +3,7 @@
   <Fragment>      
     <UI>      
       <Dialog Id="UpgradeDowngradeDlg" Width="370" Height="270" Title="!(loc.ServiceDlg_Header)">
-        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="[CSUPDOWNGRADE]">
-          <Condition Action="show">PREVIOUSVERSIONSINSTALLED</Condition>
-          <Condition Action="enable">PREVIOUSVERSIONSINSTALLED</Condition>
-          <Condition Action="default">PREVIOUSVERSIONSINSTALLED</Condition>
-          <Publish Event="EndDialog" Value="Return"><![CDATA[OutOfDiskSpace <> 1]]></Publish>
-          <Publish Event="SpawnDialog" Value="OutOfRbDiskDlg">OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST="P" OR NOT PROMPTROLLBACKCOST)</Publish>
-          <Publish Event="EndDialog" Value="Return">OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST="D"</Publish>
-          <Publish Event="EnableRollback" Value="False">OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST="D"</Publish>
-          <Publish Event="SpawnDialog" Value="OutOfDiskDlg">(OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 1) OR (OutOfDiskSpace = 1 AND PROMPTROLLBACKCOST="F")</Publish>
-        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="[CSUPDOWNGRADE]"/>
         <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
           <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
@@ -22,7 +13,6 @@
         <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
         <Control Id="DescriptionLabel" Type="Text" X="15" Y="70" Width="330" Height="45" TabSkip="no" Text="[ProductName] is already installed on this System. Click [CSUPDOWNGRADE] to [CSUPDOWNGRADE] the installation of [ProductName]. Click Cancel to exit the wizard."/>
-        
       </Dialog>
     </UI>
   </Fragment>
