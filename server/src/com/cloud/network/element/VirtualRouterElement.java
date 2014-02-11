@@ -1021,6 +1021,10 @@ public class VirtualRouterElement extends AdapterBase implements VirtualRouterEl
                 return false;
             }
         }
+        if ( services.contains(Service.SourceNat) ^ services.contains(Service.Firewall)) {
+            s_logger.warn("Virtual router can only enable both Firewall and SourceNat services together.");
+            return false;
+        }
         return true;
     }
 
