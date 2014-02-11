@@ -5453,7 +5453,14 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             }
             if (srr.shared) {
                 Host host = Host.getByUuid(conn, _host.uuid);
-
+                if (SRType.NFS.equals(srr.type) ){
+                	Map<String, String> smConfig = srr.smConfig;
+                	if( !smConfig.containsKey("nosubdir")) {
+                	    smConfig.put("nosubdir", "true");
+                	    sr.setSmConfig(conn,smConfig);
+                	}
+                	
+                }
                 boolean found = false;
                 for (PBD pbd : pbds) {
                     PBD.Record pbdr = pbd.getRecord(conn);
@@ -6237,8 +6244,9 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             }
 
             Host host = Host.getByUuid(conn, _host.uuid);
-
-            SR sr = SR.create(conn, host, deviceConfig, new Long(0), name, uri.getHost() + uri.getPath(), SRType.NFS.toString(), "user", shared, new HashMap<String, String>());
+            Map<String, String> smConfig = new HashMap<String, String>();
+            smConfig.put("nosubdir", "true");
+            SR sr = SR.create(conn, host, deviceConfig, new Long(0), name, uri.getHost() + uri.getPath(), SRType.NFS.toString(), "user", shared, smConfig);
             if( !checkSR(conn, sr) ) {
                 throw new Exception("no attached PBD");
             }
@@ -6513,8 +6521,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             deviceConfig.put("server", server);
             deviceConfig.put("serverpath", serverpath);
             Host host = Host.getByUuid(conn, _host.uuid);
+            Map<String, String> smConfig = new HashMap<String, String>();
+            smConfig.put("nosubdir", "true");
             SR sr = SR.create(conn, host, deviceConfig, new Long(0), pool.getUuid(), Long.toString(pool.getId()), SRType.NFS.toString(), "user", true,
-                    new HashMap<String, String>());
+            		smConfig);
             sr.scan(conn);
             return sr;
         } catch (XenAPIException e) {

@@ -564,8 +564,10 @@ public class XenServerStorageProcessor implements StorageProcessor {
             deviceConfig.put("server", server);
             deviceConfig.put("serverpath", serverpath);
             Host host = Host.getByUuid(conn, hypervisorResource.getHost().uuid);
+            Map<String, String> smConfig = new HashMap<String, String>();
+            smConfig.put("nosubdir", "true");
             SR sr = SR.create(conn, host, deviceConfig, new Long(0), pool.getUuid(), Long.toString(pool.getId()), SRType.NFS.toString(), "user", true,
-                    new HashMap<String, String>());
+                    smConfig);
             sr.scan(conn);
             return sr;
         } catch (XenAPIException e) {
