@@ -1099,3 +1099,5 @@ UPDATE `cloud`.`service_offering_details` set `display`=1 where id> 0;
 
 ALTER TABLE `cloud`.`disk_offering_details` CHANGE `display_detail` `display_detail` tinyint(1) NOT NULL DEFAULT '1' COMMENT 'True if the detail can be displayed to the end user';
 UPDATE `cloud`.`disk_offering_details` set `display_detail`=1 where id> 0;
+
+DROP TABLE IF EXISTS `cloud`.`ovs_tunnel_account`;
