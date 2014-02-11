@@ -97,6 +97,7 @@ import com.xensource.xenapi.Connection;
 import com.xensource.xenapi.Host;
 import com.xensource.xenapi.HostPatch;
 import com.xensource.xenapi.Pool;
+import com.xensource.xenapi.PoolPatch;
 import com.xensource.xenapi.Session;
 import com.xensource.xenapi.Types.SessionAuthenticationFailed;
 import com.xensource.xenapi.Types.XenAPIException;
@@ -115,7 +116,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
     protected boolean _setupMultipath;
     protected String _instance;
     private String xsHotFixFox = "996dd2e7-ad95-49cc-a0be-2c9adc4dfb0b";
-    private boolean xsHotFixFoxEnabled = false;
 
     @Inject protected AlertManager _alertMgr;
     @Inject protected AgentManager _agentMgr;
@@ -147,33 +147,30 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         }
     }
 
-    protected boolean xenserverHotFixFoxEnabled() {
-        return xsHotFixFoxEnabled;
-    }
-
-    protected boolean poolHasHotFix(Connection conn) {
+    protected boolean poolHasHotFix(Connection conn, String hostIp) {
         try {
-            boolean poolHasPatch = true;
             Map<Host, Host.Record> hosts = Host.getAllRecords(conn);
             for (Map.Entry<Host, Host.Record> entry : hosts.entrySet()) {
+
                 Host.Record re = entry.getValue();
+                if (!re.address.equalsIgnoreCase(hostIp)){
+                    continue;
+                }
+
                 Set<HostPatch> patches = re.patches;
-                boolean hasPathes = false;
+
+                PoolPatch poolPatch = PoolPatch.getByUuid(conn, xsHotFixFox);
 
                 for(HostPatch patch : patches) {
-                    HostPatch.Record patchRecord = patch.getRecord(conn);
-                    if (patchRecord != null && patchRecord.uuid.equalsIgnoreCase(xsHotFixFox)) {
-                        hasPathes = true;
+                    PoolPatch pp = patch.getPoolPatch(conn);
+                    if (pp.equals(poolPatch) && patch.getApplied(conn)) {
+                        return true;
                     }
                 }
-                if (!hasPathes) {
-                    poolHasPatch = false;
-                }
             }
-
-            return poolHasPatch;
+            return false;
         } catch (Exception e) {
-            s_logger.debug("can;t get patches infomation", e);
+            s_logger.debug("can;t get patches information", e);
             return false;
         }
     }
@@ -228,7 +225,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             Pool.Record pr = pool.getRecord(conn);
             String poolUuid = pr.uuid;
             Map<Host, Host.Record> hosts = Host.getAllRecords(conn);
-            xsHotFixFoxEnabled = poolHasHotFix(conn);
+            boolean xsHotFixFoxEnabled = poolHasHotFix(conn, hostIp);
 
             /*set cluster hypervisor type to xenserver*/
             ClusterVO clu = _clusterDao.findById(clusterId);
@@ -302,7 +299,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                     continue;
                 }
 
-                CitrixResourceBase resource = createServerResource(dcId, podId, record);
+                CitrixResourceBase resource = createServerResource(dcId, podId, record, xsHotFixFoxEnabled);
                 s_logger.info("Found host " + record.hostname + " ip=" + record.address + " product version=" + prodVersion);
 
                 Map<String, String> details = new HashMap<String, String>();
@@ -394,7 +391,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         }
     }
 
-    protected CitrixResourceBase createServerResource(long dcId, Long podId, Host.Record record) {
+    protected CitrixResourceBase createServerResource(long dcId, Long podId, Host.Record record, boolean hotfix) {
         String prodBrand = record.softwareVersion.get("product_brand");
         if (prodBrand == null) {
             prodBrand = record.softwareVersion.get("platform_name").trim();
@@ -429,7 +426,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         else if (prodBrand.equals("XenServer") && prodVersion.equals("6.1.0"))
             return new XenServer610Resource();
         else if (prodBrand.equals("XenServer") && prodVersion.equals("6.2.0")) {
-            boolean hotfix = xenserverHotFixFoxEnabled();
             if (hotfix) {
                 return new Xenserver625Resource();
             } else {
