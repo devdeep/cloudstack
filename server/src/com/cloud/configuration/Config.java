@@ -305,7 +305,6 @@ public enum Config {
 	HashKey("Hidden", ManagementServer.class, String.class, "security.hash.key", null, "for generic key-ed hash", null),
 	EncryptionKey("Hidden", ManagementServer.class, String.class, "security.encryption.key", null, "base64 encoded key data", null),
 	EncryptionIV("Hidden", ManagementServer.class, String.class, "security.encryption.iv", null, "base64 encoded IV data", null),
-	RouterRamSize("Hidden", NetworkOrchestrationService.class, Integer.class, "router.ram.size", "128", "Default RAM for router VM (in MB).", null),
 
 	DefaultPageSize("Advanced", ManagementServer.class, Long.class, "default.page.size", "500", "Default page size for API list* commands", null),
 

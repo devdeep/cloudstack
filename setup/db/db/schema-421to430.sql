@@ -863,6 +863,8 @@ INSERT IGNORE INTO `cloud`.`configuration` VALUES ('Hidden', 'DEFAULT', 'managem
 INSERT IGNORE INTO `cloud`.`configuration` VALUES ('Hidden', 'DEFAULT', 'management-server', 'hyperv.private.network.device', null, 'Specify the virtual switch on host for private network', NULL, NULL, NULL, 0);
 INSERT IGNORE INTO `cloud`.`configuration` VALUES ('Hidden', 'DEFAULT', 'management-server', 'hyperv.public.network.device', null, 'Specify the public virtual switch on host for public network', NULL, NULL, NULL, 0);
 
+DELETE from `cloud`.`configuration` WHERE `name` = "router.ram.size";
+
 ALTER TABLE `cloud`.`external_load_balancer_devices` ADD COLUMN `is_exclusive_gslb_provider` int(1) unsigned NOT NULL DEFAULT 0 COMMENT '1 if load balancer appliance is acting exclusively as gslb service provider in the zone and can not be used for LB';
 
 CREATE TABLE `cloud`.`s2s_customer_gateway_details` (
