@@ -141,6 +141,7 @@ import com.cloud.vm.VirtualMachineName;
 @Local(value = ServerResource.class)
 public class HypervDirectConnectResource extends ServerResourceBase implements ServerResource {
     public static final int DEFAULT_AGENT_PORT = 8250;
+    public static final String HOST_VM_STATE_REPORT_COMMAND = "org.apache.cloudstack.HostVmStateReportCommand";
     private static final Logger s_logger = Logger.getLogger(HypervDirectConnectResource.class.getName());
 
     private static final Gson s_gson = GsonHelper.getGson();
@@ -177,20 +178,6 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
     @Override
     public final Type getType() {
         return Type.Routing;
-    }
-
-    protected static HashMap<String, PowerState> s_powerStatesTable;
-    static {
-        s_powerStatesTable = new HashMap<String, PowerState>();
-        s_powerStatesTable.put("DISABLED", PowerState.PowerOff);
-        s_powerStatesTable.put("PAUSED", PowerState.PowerOn);
-        s_powerStatesTable.put("ENABLED", PowerState.PowerOn);
-        s_powerStatesTable.put("SUSPENDED", PowerState.PowerOn);
-        s_powerStatesTable.put("UNKNOWN", PowerState.PowerUnknown);
-        s_powerStatesTable.put("STOPPING", PowerState.PowerOff);
-        s_powerStatesTable.put("PAUSING", PowerState.PowerOn);
-        s_powerStatesTable.put("RESUMING", PowerState.PowerOn);
-        s_powerStatesTable.put("SAVING", PowerState.PowerOn);
     }
 
     @Override
@@ -345,7 +332,6 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
 
     @Override
     public final PingCommand getCurrentStatus(final long id) {
-    	// TODO, need to report VM states on host
         PingCommand pingCmd = new PingRoutingCommand(getType(), id, null, getHostVmStateReport());
 
         if (s_logger.isDebugEnabled()) {
@@ -360,6 +346,50 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
             return null;
         }
         return pingCmd;
+    }
+
+    public final ArrayList<Map<String, String>> requestHostVmStateReport() {
+        URI agentUri = null;
+        try {
+            agentUri = new URI("https", null, _agentIp, _port, "/api/HypervResource/" + HOST_VM_STATE_REPORT_COMMAND, null, null);
+        } catch (URISyntaxException e) {
+            String errMsg = "Could not generate URI for Hyper-V agent";
+            s_logger.error(errMsg, e);
+            return null;
+        }
+        String incomingCmd = postHttpRequest("{}", agentUri);
+
+        if (incomingCmd == null) {
+            return null;
+        }
+        ArrayList<Map<String, String>> result = null;
+        try {
+            result = s_gson.fromJson(incomingCmd, new TypeToken<ArrayList<HashMap<String, String>>>() {
+            }.getType());
+        } catch (Exception ex) {
+            String errMsg = "Failed to deserialize Command[] " + incomingCmd;
+            s_logger.error(errMsg, ex);
+        }
+        s_logger.debug("HostVmStateReportCommand received response "
+                + s_gson.toJson(result));
+        if (!result.isEmpty()) {
+            return result;
+        }
+        return null;
+    }
+
+    protected HashMap<String, HostVmStateReportEntry> getHostVmStateReport() {
+        final HashMap<String, HostVmStateReportEntry> vmStates = new HashMap<String, HostVmStateReportEntry>();
+        ArrayList<Map<String, String>> vmList = requestHostVmStateReport();
+        if (vmList == null || vmList.isEmpty()) {
+            return null;
+        }
+
+        for (Map<String, String> vmMap : vmList) {
+            String name = (String)vmMap.keySet().toArray()[0];
+            vmStates.put(name, new HostVmStateReportEntry(PowerState.valueOf(vmMap.get(name)), _guid, null));
+        }
+        return vmStates;
     }
 
     // TODO: Is it valid to return NULL, or should we throw on error?
@@ -399,61 +429,6 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
             return result;
         }
         return null;
-    }
-
-    public final ArrayList<Map<String, String>> requestHostVmStateReport() {
-        // Set HTTP POST destination URI
-        // Using java.net.URI, see
-        // http://docs.oracle.com/javase/1.5.0/docs/api/java/net/URI.html
-        URI agentUri = null;
-        try {
-            String cmdName = "org.apache.cloudstack.HostVmStateReportCommand";
-            agentUri =
-                    new URI("https", null, _agentIp, _port,
-                            "/api/HypervResource/" + cmdName, null, null);
-        } catch (URISyntaxException e) {
-            // TODO add proper logging
-            String errMsg = "Could not generate URI for Hyper-V agent";
-            s_logger.error(errMsg, e);
-            return null;
-        }
-        String incomingCmd = postHttpRequest("{}", agentUri);
-
-        if (incomingCmd == null) {
-            return null;
-        }
-        ArrayList<Map<String, String>> result = null;
-        try {
-            result = s_gson.fromJson(incomingCmd, new TypeToken<ArrayList<HashMap<String, String>>>() {
-            }.getType());
-        } catch (Exception ex) {
-            String errMsg = "Failed to deserialize Command[] " + incomingCmd;
-            s_logger.error(errMsg, ex);
-        }
-        s_logger.debug("HostVmStateReportCommand received response "
-                + s_gson.toJson(result));
-        if (!result.isEmpty()) {
-            return result;
-        }
-        return null;
-    }
-
-    private static PowerState convertPowerState(String powerState) {
-        return s_powerStatesTable.get(powerState);
-    }
-
-    protected HashMap<String, HostVmStateReportEntry> getHostVmStateReport() {
-        final HashMap<String, HostVmStateReportEntry> vmStates = new HashMap<String, HostVmStateReportEntry>();
-        ArrayList<Map<String, String>> vmList = requestHostVmStateReport();
-        if (vmList == null) {
-            return null;
-        }
-
-        for (Map<String, String> vmMap : vmList) {
-            String name = (String)vmMap.keySet().toArray()[0];
-            vmStates.put(name, new HostVmStateReportEntry(convertPowerState(vmMap.get(name)), _guid, null));
-        }
-        return vmStates;
     }
 
     // TODO: Is it valid to return NULL, or should we throw on error?
