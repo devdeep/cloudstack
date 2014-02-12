@@ -35,6 +35,7 @@ import com.cloud.storage.resource.StorageSubsystemCommandHandler;
 import com.cloud.storage.resource.StorageSubsystemCommandHandlerBase;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.script.Script;
+import com.cloud.utils.ssh.SSHCmdHelper;
 import com.xensource.xenapi.Connection;
 
 @Local(value=ServerResource.class)
@@ -108,6 +109,25 @@ public class Xenserver625Resource extends XenServerResourceNewBase {
     @Override
     protected void umountSnapshotDir(Connection conn, Long dcId) {
 
+    }
+    
+    @Override
+    protected boolean setupServer(Connection conn) {
+        com.trilead.ssh2.Connection sshConnection = new com.trilead.ssh2.Connection(_host.ip, 22);
+        try {
+            sshConnection.connect(null, 60000, 60000);
+            if (!sshConnection.authenticateWithPassword(_username, _password.peek())) {
+                throw new CloudRuntimeException("Unable to authenticate");
+            }
+
+            String cmd = "rm -f /opt/xensource/sm/hostvmstats.py /opt/xensource/bin/copy_vhd_to_secondarystorage.sh " +
+            		"/opt/xensource/bin/copy_vhd_from_secondarystorage.sh /opt/xensource/bin/create_privatetemplate_from_snapshot.sh " +
+            		"opt/xensource/bin/vhd-util ";
+            SSHCmdHelper.sshExecuteCmd(sshConnection, cmd); 
+        } catch (Exception e) {
+            s_logger.debug("Catch exception " + e.toString(), e);
+        }
+        return super.setupServer(conn);
     }
 
 }
