@@ -1148,7 +1148,7 @@ public class HypervisorHostHelper {
 
     public static boolean createBlankVm(VmwareHypervisorHost host, String vmName, String vmInternalCSName,
             int cpuCount, int cpuSpeedMHz, int cpuReservedMHz, boolean limitCpuUse, int memoryMB, int memoryReserveMB, String guestOsIdentifier,
-            ManagedObjectReference morDs, boolean snapshotDirToParent, Pair<String, String> controllerInfo) throws Exception {
+            ManagedObjectReference morDs, boolean snapshotDirToParent, Pair<String, String> controllerInfo, Boolean systemVm) throws Exception {
 
         if(s_logger.isInfoEnabled())
             s_logger.info("Create blank VM. cpuCount: " + cpuCount + ", cpuSpeed(MHz): " + cpuSpeedMHz + ", mem(Mb): " + memoryMB);
@@ -1174,10 +1174,14 @@ public class HypervisorHostHelper {
 
         Pair<String, String> updatedControllerInfo = new Pair<String, String>(newRootDiskController, newDataDiskController);
         String scsiDiskController = HypervisorHostHelper.getScsiController(updatedControllerInfo);
-        // If there exists a SCSI controller, ensure to create those.
+        // If there is requirement for a SCSI controller, ensure to create those.
         if (scsiDiskController != null) {
             int busNum = 0;
-            while (busNum < VmwareHelper.MAX_SCSI_CONTROLLER_COUNT) {
+            int maxControllerCount = VmwareHelper.MAX_SCSI_CONTROLLER_COUNT;
+            if (systemVm) {
+                maxControllerCount = 1;
+            }
+            while (busNum < maxControllerCount) {
                 VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
                 scsiControllerSpec = getControllerSpec(DiskControllerType.getType(scsiDiskController).toString(), busNum);
                 vmConfig.getDeviceChange().add(scsiControllerSpec);

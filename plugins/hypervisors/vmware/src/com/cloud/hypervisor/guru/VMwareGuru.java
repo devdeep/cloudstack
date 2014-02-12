@@ -191,7 +191,7 @@ public class VMwareGuru extends HypervisorGuruBase implements HypervisorGuru, Co
         || vm.getVirtualMachine() instanceof SecondaryStorageVmVO)) {
             // user vm
             if (diskController == null) {
-                details.put(VmDetailConstants.DATA_DISK_CONTROLLER, DiskControllerType.osdefault.toString());
+                details.put(VmDetailConstants.DATA_DISK_CONTROLLER, DiskControllerType.lsilogic.toString());
             }
         }
 

@@ -2111,6 +2111,30 @@ public class VirtualMachineMO extends BaseMO {
         throw new Exception(diskController + " Controller Not Found");
     }
 
+    public int getScsiDiskControllerKeyNoException(String diskController) throws Exception {
+        List<VirtualDevice> devices = (List<VirtualDevice>)_context.getVimClient().
+                getDynamicProperty(_mor, "config.hardware.device");
+
+        if (devices != null && devices.size() > 0) {
+            for (VirtualDevice device : devices) {
+                if ((DiskControllerType.getType(diskController) == DiskControllerType.lsilogic || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof VirtualLsiLogicController) {
+                    return ((VirtualLsiLogicController)device).getKey();
+                } else if ((DiskControllerType.getType(diskController) == DiskControllerType.lsisas1068 || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof VirtualLsiLogicSASController) {
+                    return ((VirtualLsiLogicSASController)device).getKey();
+                } else if ((DiskControllerType.getType(diskController) == DiskControllerType.pvscsi || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof ParaVirtualSCSIController) {
+                    return ((ParaVirtualSCSIController)device).getKey();
+                } else if ((DiskControllerType.getType(diskController) == DiskControllerType.buslogic || DiskControllerType.getType(diskController) == DiskControllerType.scsi)
+                        && device instanceof VirtualBusLogicController) {
+                    return ((VirtualBusLogicController)device).getKey();
+                }
+            }
+        }
+        return -1;
+    }
+
 	public int getNextScsiDiskDeviceNumber() throws Exception {
 		int scsiControllerKey = getScsiDeviceControllerKey();
 		int deviceNumber = getNextDeviceNumber(scsiControllerKey);

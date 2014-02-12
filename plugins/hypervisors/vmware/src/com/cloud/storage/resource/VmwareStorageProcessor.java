@@ -1252,7 +1252,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 Map<String, String> diskDetails = new HashMap<String, String>();
 
                 if (diskController == null) {
-                    diskController = getControllerFromConfigurationSetting();
+                    diskController = getLegacyVmDataDiskController();
                 }
                 if (DiskControllerType.getType(diskController) == DiskControllerType.osdefault) {
                     diskController = vmMo.getRecommendedDiskController(null);
@@ -1784,5 +1784,9 @@ public class VmwareStorageProcessor implements StorageProcessor {
         }
 
         return diskController;
+    }
+
+    private String getLegacyVmDataDiskController() throws Exception {
+        return DiskControllerType.lsilogic.toString();
     }
 }
