@@ -2070,6 +2070,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                 details.put(DiskTO.CHAP_TARGET_USERNAME, chapInfo.getTargetUsername());
                 details.put(DiskTO.CHAP_TARGET_SECRET, chapInfo.getTargetSecret());
             }
+            _userVmDao.loadDetails(vm);
             // Fetch disk controller for this VM from VM's details, which comes from previous implementation OR template detail if previous detail is non-existent.
             String diskController = vm.getDetail(VmDetailConstants.DATA_DISK_CONTROLLER);
             cmd.setDiskController(diskController);
