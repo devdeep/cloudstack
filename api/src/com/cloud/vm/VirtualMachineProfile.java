@@ -139,5 +139,7 @@ public interface VirtualMachineProfile {
 
     Float getMemoryOvercommitRatio();
 
+    void setServiceOffering(ServiceOffering offering);
+
 
 }

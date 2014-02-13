@@ -232,7 +232,8 @@ public class VirtualMachineProfileImpl implements VirtualMachineProfile {
 	    return _params;
 	}
 
-	public void setServiceOffering(ServiceOfferingVO offering) {
+	@Override
+    public void setServiceOffering(ServiceOffering offering) {
 		_offering = offering;
 	}
 
