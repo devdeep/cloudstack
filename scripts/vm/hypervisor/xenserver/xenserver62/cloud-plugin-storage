@@ -222,6 +222,21 @@ def makedirs(path):
             raise xs_errors.XenError(errMsg)
     return
 
+def mount(remoteDir, localDir):
+    makedirs(localDir)
+    options = "soft,tcp,timeo=133,retrans=1"
+    try:
+        cmd = ['mount', '-o', options, remoteDir, localDir]
+        txt = util.pread2(cmd)
+    except:
+        txt = ''
+        errMsg = "Unexpected error while trying to mount " + remoteDir + " to " + localDir
+        logging.debug(errMsg)
+        raise xs_errors.XenError(errMsg)
+    logging.debug("Successfully mounted " + remoteDir + " to " + localDir)
+
+    return
+
 def umount(localDir):
     try:
         cmd = ['umount', localDir]
@@ -293,9 +308,138 @@ def makeDirectory(session, args):
             raise xs_errors.XenError(errMsg)
     return "true"
 
+@echo
+def post_create_private_template(session, args):
+    local_mount_path = None
+    try:
+        try:
+            # get local template folder
+            templatePath = args["templatePath"]
+            local_mount_path = os.path.join(CLOUD_DIR, util.gen_uuid())
+            mount(templatePath, local_mount_path)
+            # Retrieve args
+            filename = args["templateFilename"]
+            name = args["templateName"]
+            description = args["templateDescription"]
+            checksum = args["checksum"]
+            file_size = args["size"]
+            virtual_size = args["virtualSize"]
+            template_id = args["templateId"]
+
+            # Create the template.properties file
+            template_properties_install_path = local_mount_path + "/template.properties"
+            f = open(template_properties_install_path, "w")
+            f.write("filename=" + filename + "\n")
+            f.write("vhd=true\n")
+            f.write("id=" + template_id + "\n")
+            f.write("vhd.filename=" + filename + "\n")
+            f.write("public=false\n")
+            f.write("uniquename=" + name + "\n")
+            f.write("vhd.virtualsize=" + virtual_size + "\n")
+            f.write("virtualsize=" + virtual_size + "\n")
+            f.write("checksum=" + checksum + "\n")
+            f.write("hvm=true\n")
+            f.write("description=" + description + "\n")
+            f.write("vhd.size=" + str(file_size) + "\n")
+            f.write("size=" + str(file_size) + "\n")
+            f.close()
+            logging.debug("Created template.properties file")
+
+            # Set permissions
+            permissions = stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
+            os.chmod(template_properties_install_path, permissions)
+            logging.debug("Set permissions on template and template.properties")
+
+        except:
+            errMsg = "post_create_private_template failed."
+            logging.debug(errMsg)
+            raise xs_errors.XenError(errMsg)
+
+    finally:
+        if local_mount_path != None:
+            # Unmount the local folder
+            umount(local_mount_path)
+            # Remove the local folder
+            os.system("rmdir " + local_mount_path)
+    return "1"
+
+@echo
+def delete_secondary_storage_folder(session, args):
+    local_mount_path = None
+
+    logging.debug("delete_secondary_storage_folder, args: " + str(args))
+
+    try:
+        try:
+            # Mount the remote resource folder locally
+            remote_mount_path = args["remoteMountPath"]
+            local_mount_path = os.path.join(CLOUD_DIR, util.gen_uuid())
+            mount(remote_mount_path, local_mount_path)
+
+            # Delete the specified folder
+            folder = local_mount_path + "/" + args["folder"]
+            if os.path.isdir(folder):
+                os.system("rm -f " + folder + "/*")
+                os.system("rmdir " + folder)
+        except OSError, (errno, strerror):
+            errMsg = "delete_secondary_storage_folder failed: errno: " + str(errno) + ", strerr: " + strerror
+            logging.debug(errMsg)
+            raise xs_errors.XenError(errMsg)
+        except:
+            errMsg = "delete_secondary_storage_folder failed."
+            logging.debug(errMsg)
+            raise xs_errors.XenError(errMsg)
+    finally:
+        if local_mount_path != None:
+            # Unmount the local folder
+            umount(local_mount_path)
+            # Remove the local folder
+            os.system("rmdir " + local_mount_path)
+
+    return "1"
+
+@echo
+def create_secondary_storage_folder(session, args):
+    local_mount_path = None
+
+    logging.debug("create_secondary_storage_folder, args: " + str(args))
+
+    try:
+        try:
+            # Mount the remote resource folder locally
+            remote_mount_path = args["remoteMountPath"]
+            local_mount_path = os.path.join(CLOUD_DIR, util.gen_uuid())
+            mount(remote_mount_path, local_mount_path)
+
+            # Create the new folder
+            new_folder = local_mount_path + "/" + args["newFolder"]
+            if not os.path.isdir(new_folder):
+                current_umask = os.umask(0)
+                os.makedirs(new_folder)
+                os.umask(current_umask)
+        except OSError, (errno, strerror):
+            errMsg = "create_secondary_storage_folder failed: errno: " + str(errno) + ", strerr: " + strerror
+            logging.debug(errMsg)
+            raise xs_errors.XenError(errMsg)
+        except:
+            errMsg = "create_secondary_storage_folder failed."
+            logging.debug(errMsg)
+            raise xs_errors.XenError(errMsg)
+    finally:
+        if local_mount_path != None:
+            # Unmount the local folder
+            umount(local_mount_path)
+            # Remove the local folder
+            os.system("rmdir " + local_mount_path)
+
+    return "1"
+
 if __name__ == "__main__":
     XenAPIPlugin.dispatch({"getVhdParent":getVhdParent, "mountNfsSecondaryStorage":mountNfsSecondaryStorage,
         "umountNfsSecondaryStorage":umountNfsSecondaryStorage,
-        "makeDirectory":makeDirectory})
+        "makeDirectory":makeDirectory,
+        "post_create_private_template": post_create_private_template,
+        "delete_secondary_storage_folder": delete_secondary_storage_folder,
+        "create_secondary_storage_folder": create_secondary_storage_folder})
     
 

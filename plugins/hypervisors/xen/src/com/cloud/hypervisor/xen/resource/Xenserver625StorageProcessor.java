@@ -428,6 +428,39 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
         return new CopyCmdAnswer(details);
     }
 
+    protected boolean postCreatePrivateTemplate(Connection conn, String templatePath, String tmpltFilename, String templateName, String templateDescription, String checksum, long size, long virtualSize, long templateId) {
+
+        if (templateDescription == null) {
+            templateDescription = "";
+        }
+
+        if (checksum == null) {
+            checksum = "";
+        }
+
+        String result = hypervisorResource.callHostPlugin(conn, "cloud-plugin-storage", "post_create_private_template", "templatePath", templatePath, "templateFilename", tmpltFilename, "templateName", templateName, "templateDescription", templateDescription,
+                "checksum", checksum, "size", String.valueOf(size), "virtualSize", String.valueOf(virtualSize), "templateId", String.valueOf(templateId));
+
+        boolean success = false;
+        if (result != null && !result.isEmpty()) {
+            // Else, command threw an exception which has already been logged.
+
+            if (result.equalsIgnoreCase("1")) {
+                s_logger.debug("Successfully created template.properties file on secondary storage for " + tmpltFilename);
+                success = true;
+            } else {
+                s_logger.warn("Could not create template.properties file on secondary storage for " + tmpltFilename + " for templateId: " + templateId);
+            }
+        }
+
+        return success;
+    }
+
+    protected boolean deleteSecondaryStorageFolder(Connection conn, String remoteMountPath, String folder) {
+        String details = hypervisorResource.callHostPlugin(conn, "cloud-plugin-storage", "delete_secondary_storage_folder", "remoteMountPath", remoteMountPath, "folder", folder);
+        return (details != null && details.equals("1"));
+    }
+
     @Override
     public Answer createTemplateFromVolume(CopyCommand cmd) {
         Connection conn = hypervisorResource.getConnection();
@@ -451,7 +484,7 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
             URI uri = new URI(secondaryStoragePoolURL);
             secondaryStorageMountPath = uri.getHost() + ":" + uri.getPath();
             installPath = template.getPath();
-            if( !hypervisorResource.createSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath)) {
+            if( !createSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath)) {
                 details = " Filed to create folder " + installPath + " in secondary storage";
                 s_logger.warn(details);
                 return new CopyCmdAnswer(details);
@@ -479,7 +512,7 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
             long physicalSize = tmpltVDI.getPhysicalUtilisation(conn);
             // create the template.properties file
             String templatePath = secondaryStorageMountPath + "/" + installPath;
-            result = hypervisorResource.postCreatePrivateTemplate(conn, templatePath, tmpltFilename, tmpltUUID, userSpecifiedName, null, physicalSize, virtualSize, template.getId());
+            result = postCreatePrivateTemplate(conn, templatePath, tmpltFilename, tmpltUUID, userSpecifiedName, null, physicalSize, virtualSize, template.getId());
             if (!result) {
                 throw new CloudRuntimeException("Could not create the template.properties file on secondary storage dir");
             }
@@ -499,7 +532,7 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
                 hypervisorResource.removeSR(conn, tmpltSR);
             }
             if ( secondaryStorageMountPath != null) {
-                hypervisorResource.deleteSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath);
+                deleteSecondaryStorageFolder(conn, secondaryStorageMountPath, installPath);
             }
             details = "Creating template from volume " + volumeUUID + " failed due to " + e.toString();
             s_logger.error(details, e);
@@ -618,6 +651,11 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
         return new CopyCmdAnswer(details);
     }
 
+    protected boolean createSecondaryStorageFolder(Connection conn, String remoteMountPath, String newFolder) {
+        String result = hypervisorResource.callHostPlugin(conn, "cloud-plugin-storage", "create_secondary_storage_folder", "remoteMountPath", remoteMountPath, "newFolder", newFolder);
+        return (result != null);
+    }
+
     @Override
     public Answer copyVolumeFromPrimaryToSecondary(CopyCommand cmd) {
         Connection conn = hypervisorResource.getConnection();
@@ -632,7 +670,7 @@ public class Xenserver625StorageProcessor extends XenServerStorageProcessor {
                 NfsTO nfsStore = (NfsTO)destStore;
                 URI uri = new URI(nfsStore.getUrl());
                 // Create the volume folder
-                if (!hypervisorResource.createSecondaryStorageFolder(conn, uri.getHost() + ":" + uri.getPath(), destVolume.getPath())) {
+                if (!createSecondaryStorageFolder(conn, uri.getHost() + ":" + uri.getPath(), destVolume.getPath())) {
                     throw new InternalErrorException("Failed to create the volume folder.");
                 }
 
