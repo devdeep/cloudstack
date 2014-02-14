@@ -383,7 +383,7 @@ ServerResource {
     protected int _timeout;
     protected int _cmdsTimeout;
     protected int _stopTimeout;
-    
+
     // TODO vmsync {
     protected static HashMap<DomainInfo.DomainState, State> s_statesTable;
     static {
@@ -1634,12 +1634,12 @@ ServerResource {
                     Rbd rbd = new Rbd(io);
                     RbdImage image = rbd.open(vol.getName());
 
-                    s_logger.debug("Resizing RBD volume " + vol.getName() +  " to " + newSize + " bytes"); 
+                    s_logger.debug("Resizing RBD volume " + vol.getName() +  " to " + newSize + " bytes");
                     image.resize(newSize);
                     rbd.close(image);
 
                     r.ioCtxDestroy(io);
-                    s_logger.debug("Succesfully resized RBD volume " + vol.getName() +  " to " + newSize + " bytes"); 
+                    s_logger.debug("Succesfully resized RBD volume " + vol.getName() +  " to " + newSize + " bytes");
                 } catch (RadosException e) {
                     return new ResizeVolumeAnswer(cmd, false, e.toString());
                 } catch (RbdException e) {
@@ -2278,7 +2278,7 @@ ServerResource {
              *
              * These bindings will read the snapshot and write the contents to
              * the secondary storage directly
-             * 
+             *
              * It will stop doing so if the amount of time spend is longer then
              * cmds.timeout
              */
@@ -2855,7 +2855,7 @@ ServerResource {
         final State state = s_statesTable.get(ps);
         return state == null ? State.Unknown : state;
     }
-    
+
     protected PowerState convertToPowerState(DomainInfo.DomainState ps) {
         final PowerState state = s_powerStatesTable.get(ps);
         return state == null ? PowerState.PowerUnknown : state;
@@ -4406,7 +4406,7 @@ ServerResource {
 
         return vmStates;
     }
-    
+
     private HashMap<String, HostVmStateReportEntry> getHostVmStateReport() {
         final HashMap<String, HostVmStateReportEntry> vmStates = new HashMap<String, HostVmStateReportEntry>();
         Connect conn = null;
@@ -4431,7 +4431,7 @@ ServerResource {
 
         return vmStates;
     }
-    
+
     private HashMap<String, HostVmStateReportEntry> getHostVmStateReport(Connect conn) {
         final HashMap<String, HostVmStateReportEntry> vmStates = new HashMap<String, HostVmStateReportEntry>();
 
@@ -4463,7 +4463,13 @@ ServerResource {
                 s_logger.trace("VM " + dm.getName() + ": powerstate = " + ps
                         + "; vm state=" + state.toString());
                 String vmName = dm.getName();
-                vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName(), null));
+
+                // TODO : for XS/KVM (host-based resource), we require to remove
+                // VM completely from host, for some reason, KVM seems to still keep
+                // Stopped VM around, to work-around that, reporting only powered-on VM
+                //
+                if (state == PowerState.PowerOn)
+                    vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName(), null));
             } catch (final LibvirtException e) {
                 s_logger.warn("Unable to get vms", e);
             } finally {
@@ -4488,7 +4494,12 @@ ServerResource {
                 s_logger.trace("VM " + vmName + ": powerstate = " + ps
                         + "; vm state=" + state.toString());
 
-                vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName(), null));
+                // TODO : for XS/KVM (host-based resource), we require to remove
+                // VM completely from host, for some reason, KVM seems to still keep
+                // Stopped VM around, to work-around that, reporting only powered-on VM
+                //
+                if (state == PowerState.PowerOn)
+                    vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName(), null));
             } catch (final LibvirtException e) {
                 s_logger.warn("Unable to get vms", e);
             } finally {
@@ -5027,7 +5038,7 @@ ServerResource {
                 bytes_rd += blockStats.rd_bytes;
                 bytes_wr += blockStats.wr_bytes;
             }
-            
+
             if (oldStats != null) {
                 long deltaiord = io_rd - oldStats._io_rd;
                 if (deltaiord > 0)
@@ -5042,7 +5053,7 @@ ServerResource {
                 if (deltabyteswr > 0)
                     stats.setDiskWriteKBs(deltabyteswr / 1024);
             }
-            
+
             /* save to Hashmap */
             vmStats newStat = new vmStats();
             newStat._usedTime = info.cpuTime;
