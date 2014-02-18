@@ -1,4 +1,96 @@
 (function($, cloudStack) {
+  // Remove unsupported items from UI
+  var removeUnsupported = function() {
+    var unsupportedHypervisors = ['LXC', 'Ovm'];
+    var systemSubsections = cloudStack.sections.system.subsections;
+    var addClusterForm = systemSubsections.clusters.listView.actions.add.createForm;
+    var registerTemplateForm = cloudStack.sections.templates.sections.templates.listView.actions.add.createForm;
+
+    addClusterForm.fields.hypervisor.select = function(args) {
+      $.ajax({
+        url: createURL("listHypervisors"),
+        dataType: "json",
+        async: false,
+        success: function(json) {
+          var hypervisors = json.listhypervisorsresponse.hypervisor;
+          var items = [];
+          $(hypervisors).each(function() {
+            if ($.inArray(this.name, unsupportedHypervisors) === -1) {
+              items.push({
+                id: this.name,
+                description: this.name
+              });
+            }
+          });
+          args.response.success({
+            data: items
+          });
+        }
+      });
+    };
+
+    registerTemplateForm.fields.hypervisor.select = function(args) {
+      if (args.zone == null)
+        return;
+
+      var apiCmd;
+      if (args.zone == -1) { //All Zones
+        //apiCmd = "listHypervisors&zoneid=-1"; //"listHypervisors&zoneid=-1" has been changed to return only hypervisors available in all zones (bug 8809)
+        apiCmd = "listHypervisors";
+      }
+      else {
+        apiCmd = "listHypervisors&zoneid=" + args.zone;
+      }
+
+      $.ajax({
+        url: createURL(apiCmd),
+        dataType: "json",
+        async: false,
+        success: function(json) {
+          var hypervisorObjs = json.listhypervisorsresponse.hypervisor;
+          var items = [];
+          $(hypervisorObjs).each(function() {
+            if ($.inArray(this.name, unsupportedHypervisors) === -1) {
+              items.push({
+                id: this.name,
+                description: this.name
+              });
+            }
+          });
+          args.response.success({
+            data: items
+          });
+        }
+      });
+
+      args.$select.change(function() {
+        var $form = $(this).closest('form');
+        if ($(this).val() == "VMware") {
+          $form.find('.form-item[rel=rootDiskControllerType]').css('display', 'inline-block');
+          $form.find('.form-item[rel=nicAdapterType]').css('display', 'inline-block');
+          $form.find('.form-item[rel=keyboardType]').css('display', 'inline-block');
+
+          $form.find('.form-item[rel=xenserverToolsVersion61plus]').hide();
+        } else if ($(this).val() == "XenServer") {
+          $form.find('.form-item[rel=rootDiskControllerType]').hide();
+          $form.find('.form-item[rel=nicAdapterType]').hide();
+          $form.find('.form-item[rel=keyboardType]').hide();
+
+          if (isAdmin())
+            $form.find('.form-item[rel=xenserverToolsVersion61plus]').css('display', 'inline-block');
+        } else {
+          $form.find('.form-item[rel=rootDiskControllerType]').hide();
+          $form.find('.form-item[rel=nicAdapterType]').hide();
+          $form.find('.form-item[rel=keyboardType]').hide();
+
+          $form.find('.form-item[rel=xenserverToolsVersion61plus]').hide();
+        }
+      });
+
+      args.$select.trigger('change');
+    };
+  };
+
   cloudStack.modules.cloudPlatform = function(module) {
     // Only these languages will show in login lang selection
     var supportedLanguages = [
@@ -7,7 +99,7 @@
 
     var replace = function(str) {
       var cpStr = 'CloudPlatform™';
-      
+
       return str
         .replace(/\&\#8482/g, '') // Remove tm symbol
         .replace(/CloudStack/gi, cpStr);
@@ -37,13 +129,13 @@
         top: $(window).height() - 250
       });
     };
-    
+
     var $loginFooter = $('<div>').addClass('footer');
 
     $(window).resize(function() {
       resizeLoginFooter();
     });
-    
+
     $('#template .login').append($loginFooter);
     resizeLoginFooter();
 
@@ -53,7 +145,7 @@
       );
 
       // Update logos
-      $(window).bind('cloudStack.ready', function() {        
+      $(window).bind('cloudStack.ready', function() {
         $('#header .controls').append($('<div>').attr('id', 'citrix-logo'));
 
         // Change help link
@@ -90,6 +182,8 @@
         $.cookie('lang', 'en');
         window.g_lang='en';
       }
+
+      removeUnsupported();
     });
   };
 }(jQuery, cloudStack));
