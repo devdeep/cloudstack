@@ -7,6 +7,16 @@
     var registerTemplateForm = cloudStack.sections.templates.sections.templates.listView.actions.add.createForm;
     var zoneWizardForm = cloudStack.zoneWizard.forms.zone;
 
+    $('.zone-wizard:visible .setup-physical-network .input-area select').live('mousedown', function() {
+      $(this).find('option').each(function () {
+        var val = $(this).val();
+
+        if ($.inArray(val, ['GRE', 'VNS', 'SSP']) > -1) {
+          $(this).remove();
+        }
+      });
+    });
+
     zoneWizardForm.fields.hypervisor.select = function (args) {
       $.ajax({
         url: createURL('listHypervisors'),
