@@ -5,6 +5,53 @@
     var systemSubsections = cloudStack.sections.system.subsections;
     var addClusterForm = systemSubsections.clusters.listView.actions.add.createForm;
     var registerTemplateForm = cloudStack.sections.templates.sections.templates.listView.actions.add.createForm;
+    var zoneWizardForm = cloudStack.zoneWizard.forms.zone;
+
+    zoneWizardForm.fields.hypervisor.select = function (args) {
+      $.ajax({
+        url: createURL('listHypervisors'),
+        async: false,
+        data: {
+          listAll: true
+        },
+        success: function (json) {
+          var items = json.listhypervisorsresponse.hypervisor;
+          var array1 = [];
+
+          var firstOption = "XenServer";
+          var nonSupportedHypervisors = {};
+          if (args.context.zones[0]['network-model'] == "Advanced" && args.context.zones[0]['zone-advanced-sg-enabled'] == "on") {
+            firstOption = "KVM";
+            nonSupportedHypervisors["VMware"] = 1;
+            nonSupportedHypervisors["BareMetal"] = 1;
+            nonSupportedHypervisors["Hyperv"] = 1;
+            nonSupportedHypervisors["Ovm"] = 1;
+            nonSupportedHypervisors["LXC"] = 1;
+          }
+
+          if (items != null) {
+            for (var i = 0; i < items.length; i++) {
+              if (items[i].name in nonSupportedHypervisors)
+                continue;
+
+              if (items[i].name == firstOption)
+                array1.unshift({
+                  id: items[i].name,
+                  description: items[i].name
+                });
+              else if ($.inArray(items[i].name, unsupportedHypervisors) === -1)
+                array1.push({
+                  id: items[i].name,
+                  description: items[i].name
+                });
+            }
+          }
+          args.response.success({
+            data: array1
+          });
+        }
+      })
+    };
 
     addClusterForm.fields.hypervisor.select = function(args) {
       $.ajax({
