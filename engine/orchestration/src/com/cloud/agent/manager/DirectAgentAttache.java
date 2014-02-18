@@ -223,7 +223,7 @@ public class DirectAgentAttache extends AgentAttache {
                         }
                     } catch (Exception e) {
                         s_logger.warn(log(seq, "Exception Caught while executing command"), e);
-                        answer = new Answer(cmds[i], false, e.toString());
+                        answer = new Answer(cmds[i], false, e.getMessage());
                     }
                     answers.add(answer);
                     if (!answer.getResult() && stopOnError) {

@@ -713,6 +713,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 } else {
                     s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " failed due to " + (answer != null ? answer.getDetails() : "no answer"));
                     success = false;
+                    throw new CloudRuntimeException(answer.getDetails());
                 }
             }
             if (!success) {
