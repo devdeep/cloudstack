@@ -20,6 +20,9 @@
 
     // Remove unsupported hypervisors
     removeSelectOptions(['LXC', 'OVM'], $('form select[name=hypervisor]'));
+
+    // Remove unsupported secondary storage provider types
+    removeSelectOptions(['Swift'], $('form select[name=provider]'));
   };
 
   cloudStack.modules.cloudPlatform = function(module) {
