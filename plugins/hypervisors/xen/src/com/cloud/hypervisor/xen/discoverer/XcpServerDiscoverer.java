@@ -699,19 +699,17 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         if (host.getClusterId() != null) {
             List<HostVO> hosts = _resourceMgr.listAllUpAndEnabledHosts(com.cloud.host.Host.Type.Routing, host.getClusterId(), host.getPodId(), host.getDataCenterId());
             for (HostVO thost : hosts) {
-                if (thost.getId() == host.getId()) {
-                    continue;
-                }
-
                 long thostId = thost.getId();
                 PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
                 Answer answer = _agentMgr.easySend(thostId, eject);
                 if (answer == null) {
+                    success = false;
                     continue;
                 }
                 if (answer.getResult()) {
                     s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " Succeed");
                     success = true;
+                    break;
                 } else {
                     s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " failed due to " + (answer != null ? answer.getDetails() : "no answer"));
                     success = false;
