@@ -15,6 +15,17 @@
       });
     };
 
+    // Filter out unsupported network service providers
+    var unsupportedProviders = ['MidoNet', 'BigSwitch Vns'];
+    $('.list-view').live('cloudStack.listView.addRow', function(e, data) {
+      var $tr = data.$tr;
+
+      if ($.inArray($tr.find('td.name span').html(), unsupportedProviders) > -1) {
+        $tr.remove();
+      }
+    });
+    removeSelectOptions(unsupportedProviders, $('form select'));
+
     // Zone wizard: Physical network: Remove unsupported isolation methods
     removeSelectOptions(['GRE', 'VNS', 'SSP'], $('.zone-wizard .setup-physical-network .input-area select'));
 
