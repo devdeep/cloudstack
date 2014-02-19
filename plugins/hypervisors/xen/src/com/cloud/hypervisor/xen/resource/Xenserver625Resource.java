@@ -28,6 +28,7 @@ import javax.ejb.Local;
 import org.apache.cloudstack.hypervisor.xenserver.XenServerResourceNewBase;
 import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import org.apache.log4j.Logger;
+import org.apache.xmlrpc.XmlRpcException;
 
 import com.cloud.agent.api.StartupRoutingCommand;
 import com.cloud.resource.ServerResource;
@@ -37,6 +38,8 @@ import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.script.Script;
 import com.cloud.utils.ssh.SSHCmdHelper;
 import com.xensource.xenapi.Connection;
+import com.xensource.xenapi.Types;
+import com.xensource.xenapi.VM;
 
 @Local(value=ServerResource.class)
 public class Xenserver625Resource extends XenServerResourceNewBase {
@@ -128,6 +131,29 @@ public class Xenserver625Resource extends XenServerResourceNewBase {
             s_logger.debug("Catch exception " + e.toString(), e);
         }
         return super.setupServer(conn);
+    }
+
+    @Override
+    protected String revertToSnapshot(Connection conn, VM vmSnapshot,
+                                      String vmName, String oldVmUuid, Boolean snapshotMemory, String hostUUID)
+            throws Types.XenAPIException, XmlRpcException {
+
+        String results = callHostPluginAsync(conn, "cloud-plugin-storage",
+                "revert_memory_snapshot", 10 * 60 * 1000, "snapshotUUID",
+                vmSnapshot.getUuid(conn), "vmName", vmName, "oldVmUuid",
+                oldVmUuid, "snapshotMemory", snapshotMemory.toString(), "hostUUID", hostUUID);
+        String errMsg = null;
+        if (results == null || results.isEmpty()) {
+            errMsg = "revert_memory_snapshot return null";
+        } else {
+            if (results.equals("0")) {
+                return results;
+            } else {
+                errMsg = "revert_memory_snapshot exception";
+            }
+        }
+        s_logger.warn(errMsg);
+        throw new CloudRuntimeException(errMsg);
     }
 
 }
