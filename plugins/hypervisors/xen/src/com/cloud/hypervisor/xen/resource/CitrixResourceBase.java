@@ -1901,6 +1901,8 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         } catch (Exception e) {
             s_logger.warn("Catch exception " + e.toString(), e);
             return false;
+        } finally {
+            sshConnection.close();
         }
     }
 

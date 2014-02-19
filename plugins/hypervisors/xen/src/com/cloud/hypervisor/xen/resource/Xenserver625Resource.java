@@ -129,6 +129,8 @@ public class Xenserver625Resource extends XenServerResourceNewBase {
             SSHCmdHelper.sshExecuteCmd(sshConnection, cmd); 
         } catch (Exception e) {
             s_logger.debug("Catch exception " + e.toString(), e);
+        } finally {
+            sshConnection.close();
         }
         return super.setupServer(conn);
     }

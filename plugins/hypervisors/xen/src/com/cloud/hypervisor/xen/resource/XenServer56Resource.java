@@ -298,6 +298,8 @@ public class XenServer56Resource extends CitrixResourceBase {
         }  catch (Exception e) {
             s_logger.warn("Catch exception " + e.toString(), e);
             return false;
+        } finally {
+            sshConnection.close();
         }
         
     }
