@@ -21,9 +21,10 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.UUID;
 
-import org.apache.cloudstack.managed.threadlocal.ManagedThreadLocal;
 import org.apache.log4j.Logger;
 import org.apache.log4j.NDC;
+
+import org.apache.cloudstack.managed.threadlocal.ManagedThreadLocal;
 
 import com.cloud.exception.CloudAuthenticationException;
 import com.cloud.user.Account;
@@ -40,7 +41,7 @@ import com.cloud.utils.exception.CloudRuntimeException;
 public class CallContext {
     private static final Logger s_logger = Logger.getLogger(CallContext.class);
     private static ManagedThreadLocal<CallContext> s_currentContext = new ManagedThreadLocal<CallContext>();
-    private static ManagedThreadLocal<Stack<CallContext>> s_currentContextStack = 
+    private static ManagedThreadLocal<Stack<CallContext>> s_currentContextStack =
             new ManagedThreadLocal<Stack<CallContext>>() {
                 @Override
                 protected Stack<CallContext> initialValue() {
@@ -76,9 +77,9 @@ public class CallContext {
 
     protected CallContext(User user, Account account, String contextId) {
         this.user = user;
-        this.userId = user.getId();
+        userId = user.getId();
         this.account = account;
-        this.accountId = account.getId();
+        accountId = account.getId();
         this.contextId = contextId;
     }
 
@@ -119,7 +120,7 @@ public class CallContext {
     /**
      * This method should only be called if you can propagate the context id
      * from another CallContext.
-     * 
+     *
      * @param callingUser calling user
      * @param callingAccount calling account
      * @param contextId context id propagated from another call context
@@ -131,8 +132,6 @@ public class CallContext {
 
     protected static CallContext register(User callingUser, Account callingAccount, Long userId, Long accountId, String contextId) {
         /*
-                Unit tests will have multiple times of setup/tear-down call to this, remove assertions to all unit test to run
-                 
                 assert s_currentContext.get() == null : "There's a context already so what does this new register context mean? " + s_currentContext.get().toString();
                 if (s_currentContext.get() != null) { // FIXME: This should be removed soon.  I added this check only to surface all the places that have this problem.
                     throw new CloudRuntimeException("There's a context already so what does this new register context mean? " + s_currentContext.get().toString());
@@ -149,10 +148,18 @@ public class CallContext {
         if (s_logger.isTraceEnabled()) {
             s_logger.trace("Registered: " + callingContext);
         }
-        
+
         s_currentContextStack.get().push(callingContext);
-        
+
         return callingContext;
+    }
+
+    public static CallContext registerPlaceHolderContext() {
+        CallContext context = new CallContext(0, 0, UUID.randomUUID().toString());
+        s_currentContext.set(context);
+
+        s_currentContextStack.get().push(context);
+        return context;
     }
 
     public static CallContext register(User callingUser, Account callingAccount) {
@@ -197,7 +204,7 @@ public class CallContext {
         }
         return register(user, account);
     }
-    
+
     public static CallContext register(long callingUserId, long callingAccountId, String contextId) throws CloudAuthenticationException {
         Account account = s_entityMgr.findById(Account.class, callingAccountId);
         if (account == null) {
@@ -215,7 +222,7 @@ public class CallContext {
             // NOOP
         }
     }
-    
+
     public static CallContext unregister() {
         CallContext context = s_currentContext.get();
         if (context == null) {
@@ -274,7 +281,7 @@ public class CallContext {
     public String getEventDetails() {
         return eventDetails;
     }
-    
+
     public String getEventType() {
         return eventType;
     }
@@ -282,7 +289,7 @@ public class CallContext {
     public void setEventType(String eventType) {
         this.eventType = eventType;
     }
-    
+
     public String getEventDescription() {
         return eventDescription;
     }

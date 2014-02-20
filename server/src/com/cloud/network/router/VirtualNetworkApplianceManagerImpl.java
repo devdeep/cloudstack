@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -4284,7 +4283,7 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
                     ComponentContext.inject(cmd);
                     params.put("id", ""+router.getId());
                     params.put("ctxStartEventId", "1");
-                    AsyncJobVO job = new AsyncJobVO(UUID.randomUUID().toString(), User.UID_SYSTEM, router.getAccountId(), RebootRouterCmd.class.getName(),
+                AsyncJobVO job = new AsyncJobVO("", User.UID_SYSTEM, router.getAccountId(), RebootRouterCmd.class.getName(),
                             ApiGsonHelper.getBuilder().create().toJson(params), router.getId(),
                             cmd.getInstanceType() != null ? cmd.getInstanceType().toString() : null);
                     job.setDispatcher(_asyncDispatcher.getName());
