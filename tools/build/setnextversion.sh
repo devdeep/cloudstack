@@ -63,9 +63,8 @@ echo "found $currentversion"
 
 echo 'setting version numbers'
 mvn versions:set -DnewVersion=$version -P vmware -P developer -P systemvm -P simulator -P baremetal -P ucs -Dnoredist
-mv deps/XenServerJava/pom.xml.versionsBackup deps/XenServerJava/pom.xml
-perl -pi -e "s/$currentversion/$version/" deps/XenServerJava/pom.xml
-perl -pi -e "s/$currentversion/$version/" tools/apidoc/pom.xml
+sed -i "s/cloud-client-ui-$currentversion/cloud-client-ui-$version/g" tools/apidoc/pom.xml
+
 git clean -f
 
 echo 'commit changes'

@@ -247,7 +247,7 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             ListenerThread listenerThread = new ListenerThread(this, apiPort);
             listenerThread.start();
         }
-        
+
         return true;
     }
 
@@ -507,7 +507,7 @@ public class ApiServer extends ManagerBase implements HttpRequestHandler, ApiSer
             params.put("cmdEventType", asyncCmd.getEventType().toString());
 
             Long instanceId = (objectId == null) ? asyncCmd.getInstanceId() : objectId;
-            AsyncJobVO job = new AsyncJobVO(ctx.getContextId(), callerUserId, caller.getId(), cmdObj.getClass().getName(),
+            AsyncJobVO job = new AsyncJobVO("", callerUserId, caller.getId(), cmdObj.getClass().getName(),
                     ApiGsonHelper.getBuilder().create().toJson(params), instanceId,
                     asyncCmd.getInstanceType() != null ? asyncCmd.getInstanceType().toString() : null);
             job.setDispatcher(_asyncDispatcher.getName());

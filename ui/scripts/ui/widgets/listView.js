@@ -1210,7 +1210,7 @@
                         },
                         stop: function(event, ui) {
                             rowActions._std($tr, function() {});
-
+                            var map1 = {};
                             $tr.closest('tbody').find('tr').each(function() {
                             	/* 
                             	 * fire only one sorting API call(updateXXXXXXX&sortKey=n&id=UUID) for items who have the same UUID. 
@@ -1275,13 +1275,13 @@
                         allowedActions: allowedActions
                     }
                 );
-
-                $listView.trigger('cloudStack.listView.addRow', {
-                    $tr: $tr
-                });
             }
 
-            // Add sub-select
+          $tr.closest('.list-view').trigger('cloudStack.listView.addRow', {
+            $tr: $tr
+          });
+
+          // Add sub-select
             if (subselect) {
                 var $td = $tr.find('td.first');
                 var $select = $('<div></div>').addClass('subselect').append(

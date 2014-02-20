@@ -748,8 +748,8 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
     }
 
     @Override
-    public void advanceStart(String vmUuid, Map<VirtualMachineProfile.Param, Object> params, DeploymentPlan planToDeploy, DeploymentPlanner planner) throws InsufficientCapacityException,
-            ConcurrentOperationException, ResourceUnavailableException {
+    public void advanceStart(String vmUuid, Map<VirtualMachineProfile.Param, Object> params, DeploymentPlan planToDeploy, DeploymentPlanner planner)
+            throws InsufficientCapacityException, ConcurrentOperationException, ResourceUnavailableException {
 
         AsyncJobExecutionContext jobContext = AsyncJobExecutionContext.getCurrentExecutionContext();
         if (!VmJobEnabled.value() || jobContext.isJobDispatchedBy(VmWorkConstants.VM_WORK_JOB_DISPATCHER)) {
@@ -782,6 +782,8 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                     throw (ConcurrentOperationException)jobResult;
                 else if (jobResult instanceof ResourceUnavailableException)
                     throw (ResourceUnavailableException)jobResult;
+                else if (jobResult instanceof InsufficientCapacityException)
+                    throw (InsufficientCapacityException)jobResult;
                 else if (jobResult instanceof RuntimeException)
                     throw (RuntimeException)jobResult;
                 else if (jobResult instanceof Throwable)
@@ -4447,7 +4449,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setStep(VmWorkJobVO.Step.Starting);
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkStart workInfo = new VmWorkStart(callingUser.getId(), callingAccount.getId(), vm.getId(), VirtualMachineManagerImpl.VM_WORK_JOB_HANDLER);
@@ -4504,7 +4506,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setStep(VmWorkJobVO.Step.Prepare);
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkStop workInfo = new VmWorkStop(user.getId(), account.getId(), vm.getId(), VirtualMachineManagerImpl.VM_WORK_JOB_HANDLER, cleanup);
@@ -4560,7 +4562,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setStep(VmWorkJobVO.Step.Prepare);
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkReboot workInfo = new VmWorkReboot(user.getId(), account.getId(), vm.getId(), VirtualMachineManagerImpl.VM_WORK_JOB_HANDLER, params);
@@ -4615,7 +4617,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkMigrate workInfo = new VmWorkMigrate(user.getId(), account.getId(), vm.getId(), VirtualMachineManagerImpl.VM_WORK_JOB_HANDLER, srcHostId, dest);
@@ -4667,7 +4669,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkMigrateAway workInfo = new VmWorkMigrateAway(user.getId(), account.getId(), vm.getId(), VirtualMachineManagerImpl.VM_WORK_JOB_HANDLER, srcHostId);
@@ -4724,7 +4726,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkMigrateWithStorage workInfo = new VmWorkMigrateWithStorage(user.getId(), account.getId(), vm.getId(),
@@ -4781,7 +4783,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkMigrateForScale workInfo = new VmWorkMigrateForScale(user.getId(), account.getId(), vm.getId(),
@@ -4838,7 +4840,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkStorageMigration workInfo = new VmWorkStorageMigration(user.getId(), account.getId(), vm.getId(),
@@ -4894,7 +4896,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkAddVmToNetwork workInfo = new VmWorkAddVmToNetwork(user.getId(), account.getId(), vm.getId(),
@@ -4948,7 +4950,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkRemoveNicFromVm workInfo = new VmWorkRemoveNicFromVm(user.getId(), account.getId(), vm.getId(),
@@ -5002,7 +5004,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkRemoveVmFromNetwork workInfo = new VmWorkRemoveVmFromNetwork(user.getId(), account.getId(), vm.getId(),
@@ -5058,7 +5060,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         workJob.setUserId(user.getId());
                         workJob.setVmType(VirtualMachine.Type.Instance);
                         workJob.setVmInstanceId(vm.getId());
-                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
+                        workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
 
                         // save work context info (there are some duplications)
                         VmWorkReconfigure workInfo = new VmWorkReconfigure(user.getId(), account.getId(), vm.getId(),
