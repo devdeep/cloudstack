@@ -16,15 +16,12 @@
 // under the License.
 package com.cloud.utils;
 
-import java.net.URL;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
-
-import javax.xml.crypto.Data;
 
 import com.cloud.utils.exception.CloudRuntimeException;
 
@@ -268,11 +265,6 @@ public class DateUtil {
 		TimeZone localTimezone = Calendar.getInstance().getTimeZone();
 		TimeZone gmtTimezone = TimeZone.getTimeZone("GMT");
 		TimeZone estTimezone = TimeZone.getTimeZone("EST");
-
-		Date time = new Date();
-
-        URL url = Date.class.getResource(Data.class.getName() + ".class");
-        System.out.println("Url: " + url.toString());
 
 		System.out.println("local time :" + getDateDisplayString(localTimezone, time));
 		System.out.println("GMT time   :" + getDateDisplayString(gmtTimezone, time));
