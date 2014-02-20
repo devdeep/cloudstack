@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 import javax.ejb.Local;
 import javax.inject.Inject;
@@ -72,7 +73,7 @@ public class SnapshotSchedulerImpl extends ManagerBase implements SnapshotSchedu
     @Inject
     protected AsyncJobDao _asyncJobDao;
     protected AsyncJobDispatcher _asyncDispatcher;
-
+    
     @Inject protected SnapshotDao             _snapshotDao;
     @Inject protected SnapshotScheduleDao     _snapshotScheduleDao;
     @Inject protected SnapshotPolicyDao       _snapshotPolicyDao;
@@ -85,15 +86,15 @@ public class SnapshotSchedulerImpl extends ManagerBase implements SnapshotSchedu
     private Timer      _testClockTimer;
     private Date       _currentTimestamp;
     private TestClock  _testTimerTask;
-
+    
     public AsyncJobDispatcher getAsyncJobDispatcher() {
     	return _asyncDispatcher;
     }
-
+    
     public void setAsyncJobDispatcher(AsyncJobDispatcher dispatcher) {
     	_asyncDispatcher = dispatcher;
     }
-
+    
     private Date getNextScheduledTime(long policyId, Date currentTimestamp) {
         SnapshotPolicyVO policy = _snapshotPolicyDao.findById(policyId);
         Date nextTimestamp = null;
@@ -259,7 +260,7 @@ public class SnapshotSchedulerImpl extends ManagerBase implements SnapshotSchedu
                 params.put("id", ""+cmd.getEntityId());
                 params.put("ctxStartEventId", "1");
 
-                AsyncJobVO job = new AsyncJobVO("", User.UID_SYSTEM, volume.getAccountId(), CreateSnapshotCmd.class.getName(),
+                AsyncJobVO job = new AsyncJobVO(UUID.randomUUID().toString(), User.UID_SYSTEM, volume.getAccountId(), CreateSnapshotCmd.class.getName(),
                         ApiGsonHelper.getBuilder().create().toJson(params), cmd.getEntityId(),
                         cmd.getInstanceType() != null ? cmd.getInstanceType().toString() : null);
                 job.setDispatcher(_asyncDispatcher.getName());

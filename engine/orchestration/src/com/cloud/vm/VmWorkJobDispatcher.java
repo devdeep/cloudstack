@@ -95,14 +95,10 @@ public class VmWorkJobDispatcher extends AdapterBase implements AsyncJobDispatch
                     return;
                 }
 
-                CallContext.register(work.getUserId(), work.getAccountId());
+                CallContext.register(work.getUserId(), work.getAccountId(), job.getRelated());
 
-                try {
-                    Pair<JobInfo.Status, String> result = handler.handleVmWorkJob(work);
-                    _asyncJobMgr.completeAsyncJob(job.getId(), result.first(), 0, result.second());
-                } finally {
-                    CallContext.unregister();
-                }
+                Pair<JobInfo.Status, String> result = handler.handleVmWorkJob(work);
+                _asyncJobMgr.completeAsyncJob(job.getId(), result.first(), 0, result.second());
             } finally {
                 if (s_logger.isDebugEnabled())
                     s_logger.debug("Done with run of VM work job: " + cmd + " for VM " + work.getVmId() + ", job origin: " + job.getRelated());
@@ -112,6 +108,8 @@ public class VmWorkJobDispatcher extends AdapterBase implements AsyncJobDispatch
 
             RuntimeException ex = new RuntimeException("Job failed due to exception " + e.getMessage());
             _asyncJobMgr.completeAsyncJob(job.getId(), JobInfo.Status.FAILED, 0, _asyncJobMgr.marshallResultObject(ex));
+        } finally {
+            CallContext.unregister();
         }
 	}
 }

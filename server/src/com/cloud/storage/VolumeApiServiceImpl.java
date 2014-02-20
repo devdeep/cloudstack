@@ -2271,7 +2271,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                     workJob.setStep(VmWorkJobVO.Step.Starting);
                     workJob.setVmType(VirtualMachine.Type.Instance);
                     workJob.setVmInstanceId(vm.getId());
-                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
+                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
 
                     // save work context info (there are some duplications)
                     VmWorkAttachVolume workInfo = new VmWorkAttachVolume(callingUser.getId(), callingAccount.getId(), vm.getId(),
@@ -2322,7 +2322,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                     workJob.setStep(VmWorkJobVO.Step.Starting);
                     workJob.setVmType(VirtualMachine.Type.Instance);
                     workJob.setVmInstanceId(vm.getId());
-                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
+                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
 
                     // save work context info (there are some duplications)
                     VmWorkDetachVolume workInfo = new VmWorkDetachVolume(callingUser.getId(), callingAccount.getId(), vm.getId(),
@@ -2372,7 +2372,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                     workJob.setStep(VmWorkJobVO.Step.Starting);
                     workJob.setVmType(VirtualMachine.Type.Instance);
                     workJob.setVmInstanceId(vm.getId());
-                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
+                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
 
                     // save work context info (there are some duplications)
                     VmWorkResizeVolume workInfo = new VmWorkResizeVolume(callingUser.getId(), callingAccount.getId(), vm.getId(),
@@ -2421,7 +2421,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                     workJob.setStep(VmWorkJobVO.Step.Starting);
                     workJob.setVmType(VirtualMachine.Type.Instance);
                     workJob.setVmInstanceId(vm.getId());
-                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
+                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
 
                     // save work context info (there are some duplications)
                     VmWorkMigrateVolume workInfo = new VmWorkMigrateVolume(callingUser.getId(), callingAccount.getId(), vm.getId(),
@@ -2470,7 +2470,7 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
                     workJob.setStep(VmWorkJobVO.Step.Starting);
                     workJob.setVmType(VirtualMachine.Type.Instance);
                     workJob.setVmInstanceId(vm.getId());
-                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobId());
+                    workJob.setRelated(AsyncJobExecutionContext.getOriginJobContextId());
 
                     // save work context info (there are some duplications)
                     VmWorkTakeVolumeSnapshot workInfo = new VmWorkTakeVolumeSnapshot(

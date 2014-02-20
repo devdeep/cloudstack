@@ -16,15 +16,12 @@
 // under the License.
 package com.cloud.utils;
 
-import java.net.URL;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
-
-import javax.xml.crypto.Data;
 
 import com.cloud.utils.exception.CloudRuntimeException;
 
@@ -43,34 +40,34 @@ public class DateUtil {
 		DateFormat dfParse = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'Z");
 		return dfParse.parse(str);
 	}
-
+	
 	public static Date parseDateString(TimeZone tz, String dateString) {
 		return parseDateString(tz, dateString, "yyyy-MM-dd HH:mm:ss");
 	}
-
+	
 	public static Date parseDateString(TimeZone tz, String dateString, String formatString) {
 		DateFormat df = new SimpleDateFormat(formatString);
 		df.setTimeZone(tz);
-
+		
     	try {
     		return df.parse(dateString);
     	} catch (ParseException e) {
     		throw new CloudRuntimeException("why why ", e);
     	}
 	}
-
+	
 	public static String displayDateInTimezone(TimeZone tz, Date time) {
 	    return getDateDisplayString(tz, time, "yyyy-MM-dd HH:mm:ss z");
 	}
-
+	
 	public static String getDateDisplayString(TimeZone tz, Date time) {
 		return getDateDisplayString(tz, time, "yyyy-MM-dd HH:mm:ss");
 	}
-
+	
 	public static String getDateDisplayString(TimeZone tz, Date time, String formatString) {
 		DateFormat df = new SimpleDateFormat(formatString);
 		df.setTimeZone(tz);
-
+		
 		return df.format(time);
 	}
 
@@ -94,11 +91,11 @@ public class DateUtil {
     	DAILY,
     	WEEKLY,
     	MONTHLY;
-
+               
         boolean equals(String intervalType) {
             return super.toString().equalsIgnoreCase(intervalType);
         }
-
+        
         public static IntervalType getIntervalType(String intervalTypeStr) {
             for (IntervalType intervalType : IntervalType.values()) {
                 if (intervalType.equals(intervalTypeStr)) {
@@ -108,29 +105,29 @@ public class DateUtil {
             return null;
         }
     }
-
+    
     public static IntervalType getIntervalType(short type){
     	if (type < 0 || type >= IntervalType.values().length) {
     	    return null;
     	}
     	return IntervalType.values()[type];
     }
-
+    
 	/**
 	 * Return next run time
 	 * @param intervalType  hourly/daily/weekly/monthly
 	 * @param schedule MM[:HH][:DD] format. DD is day of week for weekly and day of month for monthly
 	 * @param timezone The timezone in which the schedule string is specified
-	 * @param startDate if specified, returns next run time after the specified startDate
+	 * @param startDate if specified, returns next run time after the specified startDate  
 	 * @return
 	 */
     public static Date getNextRunTime(IntervalType type, String schedule, String timezone, Date startDate) {
 
-    	String[] scheduleParts = schedule.split(":"); //MM:HH:DAY
+    	String[] scheduleParts = schedule.split(":"); //MM:HH:DAY 
 
     	final Calendar scheduleTime = Calendar.getInstance();
     	scheduleTime.setTimeZone(TimeZone.getTimeZone(timezone));
-
+    	
     	if(startDate == null){
     		startDate = new Date();
     	}
@@ -158,7 +155,7 @@ public class DateUtil {
                 execDate = scheduleTime.getTime();
                 scheduleTime.setLenient(false);
             }
-    		// XXX: !execDate.after(startDate) is strictly for testing.
+    		// XXX: !execDate.after(startDate) is strictly for testing. 
     		// During testing we use a test clock which runs much faster than the real clock
     		// So startDate and execDate will always be ahead in the future
     		// and we will never increase the time here
@@ -172,7 +169,7 @@ public class DateUtil {
     		}
     		minutes = Integer.parseInt(scheduleParts[0]);
     		hour = Integer.parseInt(scheduleParts[1]);
-
+    		
     		scheduleTime.set(Calendar.HOUR_OF_DAY, hour);
     		scheduleTime.set(Calendar.MINUTE, minutes);
     		scheduleTime.set(Calendar.SECOND, 0);
@@ -184,7 +181,7 @@ public class DateUtil {
                 execDate = scheduleTime.getTime();
                 scheduleTime.setLenient(false);
             }
-    		// XXX: !execDate.after(startDate) is strictly for testing.
+    		// XXX: !execDate.after(startDate) is strictly for testing. 
             // During testing we use a test clock which runs much faster than the real clock
             // So startDate and execDate will always be ahead in the future
             // and we will never increase the time here
@@ -211,7 +208,7 @@ public class DateUtil {
                 execDate = scheduleTime.getTime();
                 scheduleTime.setLenient(false);
             }
-    		// XXX: !execDate.after(startDate) is strictly for testing.
+    		// XXX: !execDate.after(startDate) is strictly for testing. 
             // During testing we use a test clock which runs much faster than the real clock
             // So startDate and execDate will always be ahead in the future
             // and we will never increase the time here
@@ -241,7 +238,7 @@ public class DateUtil {
                 execDate = scheduleTime.getTime();
                 scheduleTime.setLenient(false);
             }
-    		// XXX: !execDate.after(startDate) is strictly for testing.
+    		// XXX: !execDate.after(startDate) is strictly for testing. 
             // During testing we use a test clock which runs much faster than the real clock
             // So startDate and execDate will always be ahead in the future
             // and we will never increase the time here
@@ -262,23 +259,19 @@ public class DateUtil {
             return nextScheduledDate;
         }
     }
-
+    
 	// test only
 	public static void main(String[] args) {
 		TimeZone localTimezone = Calendar.getInstance().getTimeZone();
 		TimeZone gmtTimezone = TimeZone.getTimeZone("GMT");
 		TimeZone estTimezone = TimeZone.getTimeZone("EST");
-
+		
 		Date time = new Date();
-
-        URL url = Date.class.getResource(Data.class.getName() + ".class");
-        System.out.println("Url: " + url.toString());
-
 		System.out.println("local time :" + getDateDisplayString(localTimezone, time));
 		System.out.println("GMT time   :" + getDateDisplayString(gmtTimezone, time));
 		System.out.println("EST time   :" + getDateDisplayString(estTimezone, time));
 		//Test next run time. Expects interval and schedule as arguments
-		if(args.length == 2) {
+		if(args.length == 2) { 
 			System.out.println("Next run time: "+ getNextRunTime(IntervalType.getIntervalType(args[0]), args[1], "GMT", time).toString());
 		}
 

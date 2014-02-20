@@ -49,81 +49,81 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
 
     public static final String JOB_DISPATCHER_PSEUDO = "pseudoJobDispatcher";
     public static final String PSEUDO_JOB_INSTANCE_TYPE = "Thread";
-
+	
 	@Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Column(name="id")
     private long id;
-
+	
     @Column(name="job_type", length=32)
     protected String type;
-
+    
     @Column(name="job_dispatcher", length=64)
     protected String dispatcher;
-
+    
     @Column(name="job_pending_signals")
     protected int pendingSignals;
-
+    
     @Column(name="user_id")
     private long userId;
-
+    
     @Column(name="account_id")
     private long accountId;
-
+    
 	@Column(name="job_cmd")
     private String cmd;
 
 	@Column(name="job_cmd_ver")
     private int cmdVersion;
-
+	
     @Column(name = "related")
     private String related;
 
     @Column(name="job_cmd_info", length=65535)
     private String cmdInfo;
-
+  
     @Column(name="job_status")
     @Enumerated(value = EnumType.ORDINAL)
     private Status status;
-
+    
     @Column(name="job_process_status")
     private int processStatus;
-
+    
     @Column(name="job_result_code")
     private int resultCode;
-
+    
     @Column(name="job_result", length=65535)
     private String result;
-
+    
     @Column(name="instance_type", length=64)
     private String instanceType;
-
+    
 	@Column(name="instance_id", length=64)
     private Long instanceId;
-
+    
     @Column(name="job_init_msid")
     private Long initMsid;
 
     @Column(name="job_complete_msid")
     private Long completeMsid;
-
+    
     @Column(name="job_executing_msid")
     private Long executingMsid;
 
     @Column(name=GenericDao.CREATED_COLUMN)
     private Date created;
-
+    
     @Column(name="last_updated")
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastUpdated;
-
+    
     @Column(name="last_polled")
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastPolled;
-
+    
     @Column(name=GenericDao.REMOVED_COLUMN)
     private Date removed;
-
+    
     @Column(name="uuid")
     private String uuid;
 
@@ -132,7 +132,7 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
 
     public AsyncJobVO() {
         uuid = UUID.randomUUID().toString();
-        related = "";
+        related = UUID.randomUUID().toString();
         status = Status.IN_PROGRESS;
     }
 
@@ -156,7 +156,7 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
     public void setId(long id) {
 		this.id = id;
 	}
-
+	
     @Override
     public String getShortUuid() {
         return UuidUtils.first(uuid);
@@ -175,25 +175,25 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
 	public String getType() {
 		return type;
 	}
-
+	
 	public void setType(String type) {
 		this.type = type;
 	}
-
+	
 	@Override
 	public String getDispatcher() {
 		return dispatcher;
 	}
-
+	
 	public void setDispatcher(String dispatcher) {
 		this.dispatcher = dispatcher;
 	}
-
+	
 	@Override
 	public int getPendingSignals() {
 		return pendingSignals;
 	}
-
+	
 	public void setPendingSignals(int signals) {
 		pendingSignals = signals;
 	}
@@ -224,12 +224,12 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
 	public void setCmd(String cmd) {
 		this.cmd = cmd;
 	}
-
+	
 	@Override
     public int getCmdVersion() {
 		return cmdVersion;
 	}
-
+	
 	public void setCmdVersion(int version) {
 		cmdVersion = version;
 	}
@@ -242,7 +242,7 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
 	public void setCmdInfo(String cmdInfo) {
 		this.cmdInfo = cmdInfo;
 	}
-
+	
 	@Override
     public Status getStatus() {
 		return status;
@@ -251,21 +251,21 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
     public void setStatus(Status status) {
 		this.status = status;
 	}
-
+	
 	@Override
     public int getProcessStatus() {
 		return processStatus;
 	}
-
+	
 	public void setProcessStatus(int status) {
 		processStatus = status;
 	}
-
+	
 	@Override
     public int getResultCode() {
 		return resultCode;
 	}
-
+	
 	public void setResultCode(int resultCode) {
 		this.resultCode = resultCode;
 	}
@@ -288,12 +288,12 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
 	public void setInitMsid(Long initMsid) {
 		this.initMsid = initMsid;
 	}
-
+	
 	@Override
 	public Long getExecutingMsid() {
 		return executingMsid;
 	}
-
+	
 	public void setExecutingMsid(Long executingMsid) {
 		this.executingMsid = executingMsid;
 	}
@@ -352,26 +352,26 @@ public class AsyncJobVO implements AsyncJob, JobInfo {
 	public void setInstanceId(Long instanceId) {
 		this.instanceId = instanceId;
 	}
-
+	
 	@Override
     public SyncQueueItem getSyncSource() {
         return syncSource;
     }
-
+    
 	@Override
     public void setSyncSource(SyncQueueItem syncSource) {
         this.syncSource = syncSource;
     }
-
+    
     @Override
     public String getUuid() {
     	return uuid;
     }
-
+    
     public void setUuid(String uuid) {
     	this.uuid = uuid;
     }
-
+    
 	@Override
     public String toString() {
 		StringBuffer sb = new StringBuffer();
