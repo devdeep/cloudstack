@@ -266,6 +266,8 @@ public class DateUtil {
 		TimeZone gmtTimezone = TimeZone.getTimeZone("GMT");
 		TimeZone estTimezone = TimeZone.getTimeZone("EST");
 
+        Date time = new Date();
+
 		System.out.println("local time :" + getDateDisplayString(localTimezone, time));
 		System.out.println("GMT time   :" + getDateDisplayString(gmtTimezone, time));
 		System.out.println("EST time   :" + getDateDisplayString(estTimezone, time));
