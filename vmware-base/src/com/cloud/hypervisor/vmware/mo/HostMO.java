@@ -17,19 +17,14 @@
 package com.cloud.hypervisor.vmware.mo;
 
 import java.util.ArrayList;
-import java.util.GregorianCalendar;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
-import org.apache.xerces.impl.xs.identity.Selector.Matcher;
 
-import com.cloud.hypervisor.vmware.util.VmwareContext;
-import com.cloud.hypervisor.vmware.util.VmwareHelper;
-import com.cloud.utils.Pair;
-import com.cloud.utils.exception.CloudRuntimeException;
 import com.google.gson.Gson;
 import com.vmware.vim25.AboutInfo;
 import com.vmware.vim25.AlreadyExistsFaultMsg;
@@ -44,6 +39,7 @@ import com.vmware.vim25.HostFirewallInfo;
 import com.vmware.vim25.HostFirewallRuleset;
 import com.vmware.vim25.HostHardwareSummary;
 import com.vmware.vim25.HostHyperThreadScheduleInfo;
+import com.vmware.vim25.HostIpConfig;
 import com.vmware.vim25.HostIpRouteEntry;
 import com.vmware.vim25.HostListSummaryQuickStats;
 import com.vmware.vim25.HostNetworkInfo;
@@ -57,6 +53,7 @@ import com.vmware.vim25.HostSystemConnectionState;
 import com.vmware.vim25.HostVirtualNic;
 import com.vmware.vim25.HostVirtualSwitch;
 import com.vmware.vim25.ManagedObjectReference;
+import com.vmware.vim25.NasDatastoreInfo;
 import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.ObjectSpec;
 import com.vmware.vim25.OptionValue;
@@ -64,11 +61,11 @@ import com.vmware.vim25.PropertyFilterSpec;
 import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.TraversalSpec;
 import com.vmware.vim25.VirtualMachineConfigSpec;
-import com.vmware.vim25.VirtualMachinePowerState;
 import com.vmware.vim25.VirtualNicManagerNetConfig;
-import com.vmware.vim25.NasDatastoreInfo;
 
-import java.util.Arrays;
+import com.cloud.hypervisor.vmware.util.VmwareContext;
+import com.cloud.hypervisor.vmware.util.VmwareHelper;
+import com.cloud.utils.Pair;
 
 public class HostMO extends BaseMO implements VmwareHypervisorHost {
     private static final Logger s_logger = Logger.getLogger(HostMO.class);
@@ -514,7 +511,7 @@ public class HostMO extends BaseMO implements VmwareHypervisorHost {
 		if(key == 0) {
 			s_logger.warn("Custom field " + CustomFieldConstants.CLOUD_VM_INTERNAL_NAME + " is not registered ?!");
 		}
-        
+
         // name is the name of the VM as it appears in vCenter. The CLOUD_VM_INTERNAL_NAME custom
         // field value contains the name of the VM as it is maintained internally by cloudstack (i-x-y).
         ObjectContent[] ocs = getVmPropertiesOnHyperHost(new String[] { "name", "value[" + key + "]" });
@@ -583,12 +580,12 @@ public class HostMO extends BaseMO implements VmwareHypervisorHost {
 	}
 
 	public HashMap<String, Integer> getVmVncPortsOnHost() throws Exception {
-		
+
 		int key = getCustomFieldKey("VirtualMachine", CustomFieldConstants.CLOUD_VM_INTERNAL_NAME);
 		if(key == 0) {
 			s_logger.warn("Custom field " + CustomFieldConstants.CLOUD_VM_INTERNAL_NAME + " is not registered ?!");
 		}
-		
+
     	ObjectContent[] ocs = getVmPropertiesOnHyperHost(
             new String[] { "name", "config.extraConfig[\"RemoteDisplay.vnc.port\"]", "value[" + key + "]" }
             );
@@ -612,7 +609,7 @@ public class HostMO extends BaseMO implements VmwareHypervisorHost {
 		                    value = (String)optValue.getValue();
 		                }
 		            }
-		        	
+
 	                if (vmInternalCSName != null && isUserVMInternalCSName(vmInternalCSName))
 	                    vmName = vmInternalCSName;
 
@@ -936,7 +933,7 @@ public class HostMO extends BaseMO implements VmwareHypervisorHost {
 
 		VmwareHypervisorHostNetworkSummary summary = new VmwareHypervisorHostNetworkSummary();
 
-		if(this.getHostType() == VmwareHostType.ESXi) {
+		if(getHostType() == VmwareHostType.ESXi) {
 			List<VirtualNicManagerNetConfig> netConfigs = (List<VirtualNicManagerNetConfig>)_context.getVimClient().getDynamicProperty(_mor,
 				"config.virtualNicManagerInfo.netConfig");
 			assert(netConfigs != null);
@@ -1044,6 +1041,7 @@ public class HostMO extends BaseMO implements VmwareHypervisorHost {
         return false;
     }
 
+    @Override
     public LicenseAssignmentManagerMO getLicenseAssignmentManager() throws Exception {
         ManagedObjectReference licenseMgr;
         ManagedObjectReference licenseAssignmentManager;
@@ -1055,7 +1053,7 @@ public class HostMO extends BaseMO implements VmwareHypervisorHost {
 
         return new LicenseAssignmentManagerMO(_context, licenseAssignmentManager);
     }
-    
+
     public void enableVncOnHostFirewall() throws Exception {
         HostFirewallSystemMO firewallMo = getHostFirewallSystemMO();
         boolean bRefresh = false;
@@ -1085,6 +1083,21 @@ public class HostMO extends BaseMO implements VmwareHypervisorHost {
             ClusterMO clusterMo = new ClusterMO(_context, morParent);
             return clusterMo.getRecommendedDiskController(guestOsId);
         }
+        return null;
+    }
+
+    public String getHostManagementIp(String managementPortGroup) throws Exception {
+        HostNetworkInfo netInfo = getHostNetworkInfo();
+
+        List<HostVirtualNic> nics = netInfo.getVnic();
+        for (HostVirtualNic nic : nics) {
+            if (nic.getPortgroup().equals(managementPortGroup)) {
+                HostIpConfig ipConfig = nic.getSpec().getIp();
+
+                return ipConfig.getIpAddress();
+            }
+        }
+
         return null;
     }
 }

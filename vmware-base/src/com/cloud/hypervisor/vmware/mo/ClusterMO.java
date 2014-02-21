@@ -18,6 +18,7 @@ package com.cloud.hypervisor.vmware.mo;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -52,8 +53,6 @@ import com.vmware.vim25.VirtualMachineConfigSpec;
 import com.cloud.hypervisor.vmware.util.VmwareContext;
 import com.cloud.utils.Pair;
 import com.cloud.utils.exception.CloudRuntimeException;
-
-import java.util.Arrays;
 
 //
 // interface. This has changed as ClusterMO no longer works as a special host anymore. Need to refactor accordingly
@@ -101,12 +100,12 @@ public class ClusterMO extends BaseMO implements VmwareHypervisorHost {
 
 	@Override
 	public VirtualMachineMO findVmOnHyperHost(String name) throws Exception {
-		
+
 		int key = getCustomFieldKey("VirtualMachine", CustomFieldConstants.CLOUD_VM_INTERNAL_NAME);
 		if(key == 0) {
 			s_logger.warn("Custom field " + CustomFieldConstants.CLOUD_VM_INTERNAL_NAME + " is not registered ?!");
 		}
-		
+
 		String instanceNameCustomField = "value[" + key + "]";
 		ObjectContent[] ocs = getVmPropertiesOnHyperHost(new String[] { "name",  instanceNameCustomField });
 		return HypervisorHostHelper.findVmFromObjectContent(_context, ocs, name, instanceNameCustomField);
@@ -118,9 +117,9 @@ public class ClusterMO extends BaseMO implements VmwareHypervisorHost {
 		if(key == 0) {
 			s_logger.warn("Custom field " + CustomFieldConstants.CLOUD_VM_INTERNAL_NAME + " is not registered ?!");
 		}
-		
+
 		String instanceNameCustomField = "value[" + key + "]";
-		
+
 		ObjectContent[] ocs = getVmPropertiesOnHyperHost(new String[] { "name", instanceNameCustomField });
 		return HypervisorHostHelper.findVmFromObjectContent(_context, ocs, name, instanceNameCustomField);
 	}
@@ -196,7 +195,7 @@ public class ClusterMO extends BaseMO implements VmwareHypervisorHost {
 	    return properties.toArray(new ObjectContent[properties.size()]);
 	}
 
-	private ObjectContent[] getHostPropertiesOnCluster(String[] propertyPaths) throws Exception {
+    public ObjectContent[] getHostPropertiesOnCluster(String[] propertyPaths) throws Exception {
 		if(s_logger.isTraceEnabled())
 			s_logger.trace("vCenter API trace - retrieveProperties() on Host properties. target MOR: " + _mor.getValue() + ", properties: " + new Gson().toJson(propertyPaths));
 
