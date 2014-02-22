@@ -18,12 +18,11 @@
 package com.cloud.hypervisor.vmware.mo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import com.cloud.hypervisor.vmware.util.VmwareContext;
-import com.cloud.utils.Pair;
 import com.vmware.vim25.CustomFieldStringValue;
 import com.vmware.vim25.DVPortgroupConfigInfo;
 import com.vmware.vim25.DistributedVirtualSwitchPortConnection;
@@ -36,7 +35,9 @@ import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.SelectionSpec;
 import com.vmware.vim25.TraversalSpec;
 import com.vmware.vim25.VirtualEthernetCardDistributedVirtualPortBackingInfo;
-import java.util.Arrays;
+
+import com.cloud.hypervisor.vmware.util.VmwareContext;
+import com.cloud.utils.Pair;
 
 public class DatacenterMO extends BaseMO {
     private static final Logger s_logger = Logger.getLogger(DatacenterMO.class);
@@ -85,19 +86,17 @@ public class DatacenterMO extends BaseMO {
 	}
 
 	public VirtualMachineMO findVm(String vmName) throws Exception {
-		List<ObjectContent> ocs = getVmPropertiesOnDatacenterVmFolder(new String[] { "name" });
-		if(ocs != null && ocs.size() > 0) {
-			for(ObjectContent oc : ocs) {
-				List<DynamicProperty> props = oc.getPropSet();
-				if(props != null) {
-					for(DynamicProperty prop : props) {
-						if(prop.getVal().toString().equals(vmName))
-							return new VirtualMachineMO(_context, oc.getObj());
-					}
-				}
-			}
-		}
-		return null;
+
+        int key = getCustomFieldKey("VirtualMachine", CustomFieldConstants.CLOUD_VM_INTERNAL_NAME);
+        if (key == 0) {
+            s_logger.warn("Custom field " + CustomFieldConstants.CLOUD_VM_INTERNAL_NAME + " is not registered ?!");
+        }
+
+        String instanceNameCustomField = "value[" + key + "]";
+
+        List<ObjectContent> ocs = getVmPropertiesOnDatacenterVmFolder(new String[] {"name", instanceNameCustomField});
+        return HypervisorHostHelper.findVmFromObjectContent(_context,
+                ocs.toArray(new ObjectContent[0]), vmName, instanceNameCustomField);
 	}
 
 	public List<VirtualMachineMO> findVmByNameAndLabel(String vmLabel) throws Exception {

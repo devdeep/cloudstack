@@ -22,11 +22,19 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.net.URI;
 import java.rmi.RemoteException;
-import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
+
+import com.google.gson.Gson;
+import com.vmware.vim25.ManagedObjectReference;
+import com.vmware.vim25.VirtualDisk;
+import com.vmware.vim25.VirtualDiskFlatVer2BackingInfo;
 
 import org.apache.cloudstack.api.ApiConstants;
 import org.apache.cloudstack.storage.command.AttachAnswer;
@@ -42,8 +50,6 @@ import org.apache.cloudstack.storage.command.IntroduceObjectCmd;
 import org.apache.cloudstack.storage.to.SnapshotObjectTO;
 import org.apache.cloudstack.storage.to.TemplateObjectTO;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
-import org.apache.commons.lang.StringUtils;
-import org.apache.log4j.Logger;
 
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
@@ -80,10 +86,6 @@ import com.cloud.utils.Pair;
 import com.cloud.utils.Ternary;
 import com.cloud.utils.script.Script;
 import com.cloud.vm.VirtualMachine.State;
-import com.google.gson.Gson;
-import com.vmware.vim25.ManagedObjectReference;
-import com.vmware.vim25.VirtualDisk;
-import com.vmware.vim25.VirtualDiskFlatVer2BackingInfo;
 
 public class VmwareStorageProcessor implements StorageProcessor {
     private static final Logger s_logger = Logger.getLogger(VmwareStorageProcessor.class);
@@ -301,7 +303,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             String vmdkFileBaseName = null;
             if (srcStore == null) {
                 // create a root volume for blank VM (created from ISO)
-                String dummyVmName = this.hostService.getWorkerName(context, cmd, 0);
+                String dummyVmName = hostService.getWorkerName(context, cmd, 0);
 
                 try {
                     vmMo = HypervisorHostHelper.createWorkerVM(hyperHost, dsMo, dummyVmName);
@@ -1219,7 +1221,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 throw new Exception(msg);
             }
 
-            DatastoreMO dsMo = new DatastoreMO(this.hostService.getServiceContext(null), morDs);
+            DatastoreMO dsMo = new DatastoreMO(hostService.getServiceContext(null), morDs);
             String datastoreVolumePath;
 
             if (isAttach) {
@@ -1266,7 +1268,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 vmMo.detachDisk(datastoreVolumePath, false);
 
                 if (isManaged) {
-                    this.hostService.handleDatastoreAndVmdkDetach(iScsiName, storageHost, storagePort);
+                    hostService.handleDatastoreAndVmdkDetach(iScsiName, storageHost, storagePort);
                 } else {
                     VmwareStorageLayoutHelper.syncVolumeToRootFolder(dsMo.getOwnerDatacenter().first(), dsMo, volumeTO.getPath());
                 }
@@ -1415,7 +1417,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
             String volumeUuid = UUID.randomUUID().toString().replace("-", "");
 
             String volumeDatastorePath = dsMo.getDatastorePath(volumeUuid + ".vmdk");
-            String dummyVmName = this.hostService.getWorkerName(context, cmd, 0);
+            String dummyVmName = hostService.getWorkerName(context, cmd, 0);
             try {
                 s_logger.info("Create worker VM " + dummyVmName);
                 vmMo = HypervisorHostHelper.createWorkerVM(hyperHost, dsMo, dummyVmName);
@@ -1467,7 +1469,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
     @Override
     public Answer deleteVolume(DeleteCommand cmd) {
         if (s_logger.isInfoEnabled()) {
-            s_logger.info("Executing resource DestroyCommand: " + _gson.toJson(cmd));
+            s_logger.info("Executing resource DeleteCommand: " + _gson.toJson(cmd));
         }
 
         try {
@@ -1488,12 +1490,13 @@ public class VmwareStorageProcessor implements StorageProcessor {
             ManagedObjectReference morDc = hyperHost.getHyperHostDatacenter();
             ManagedObjectReference morCluster = hyperHost.getHyperHostCluster();
             ClusterMO clusterMo = new ClusterMO(context, morCluster);
+            DatacenterMO dcMo = new DatacenterMO(context, morDc);
 
             if (vol.getVolumeType() == Volume.Type.ROOT) {
-
                 String vmName = vol.getVmName();
+                s_logger.info("DeleteCommand contains root volume of VM: " + vmName);
                 if (vmName != null) {
-                    VirtualMachineMO vmMo = clusterMo.findVmOnHyperHost(vmName);
+                    VirtualMachineMO vmMo = dcMo.findVm(vmName);
                     if (vmMo != null) {
                         if (s_logger.isInfoEnabled()) {
                             s_logger.info("Destroy root volume and VM itself. vmName " + vmName);
@@ -1511,7 +1514,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                         List<NetworkDetails> networks = vmMo.getNetworksWithDetails();
 
                         // tear down all devices first before we destroy the VM to avoid accidently delete disk backing files
-                        if (this.resource.getVmState(vmMo) != State.Stopped) {
+                        if (resource.getVmState(vmMo) != State.Stopped) {
                             vmMo.safePowerOff(_shutdown_waitMs);
                         }
 
@@ -1532,7 +1535,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
 
                         // this.hostService.handleDatastoreAndVmdkDetach(iScsiName, storageHost, storagePort);
                         if (managedIqns != null && !managedIqns.isEmpty()) {
-                            this.hostService.removeManagedTargetsFromCluster(managedIqns);
+                            hostService.removeManagedTargetsFromCluster(managedIqns);
                         }
 
                         for (NetworkDetails netDetails : networks) {
@@ -1726,7 +1729,7 @@ public class VmwareStorageProcessor implements StorageProcessor {
                 backedUpSnapshotUuid = backedUpSnapshotUuid.replace(".ova", "");
             } else if (backedUpSnapshotUuid.endsWith(".ovf")){
                 backedUpSnapshotUuid = backedUpSnapshotUuid.replace(".ovf", "");
-            }            
+            }
             DatastoreMO primaryDsMo = new DatastoreMO(hyperHost.getContext(), morPrimaryDs);
             restoreVolumeFromSecStorage(hyperHost, primaryDsMo,
                     newVolumeName, secondaryStorageUrl, backupPath, backedUpSnapshotUuid);

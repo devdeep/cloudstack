@@ -5813,7 +5813,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
     public Answer execute(DeleteCommand cmd) {
         if (s_logger.isInfoEnabled()) {
-            s_logger.info("Executing resource DestroyCommand: " + _gson.toJson(cmd));
+            s_logger.info("Executing resource DeleteCommand: " + _gson.toJson(cmd));
         }
 
         /*
@@ -5844,13 +5844,14 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             DatastoreMO dsMo = new DatastoreMO(context, morDs);
 
             ManagedObjectReference morDc = hyperHost.getHyperHostDatacenter();
-            ManagedObjectReference morCluster = hyperHost.getHyperHostCluster();
-            ClusterMO clusterMo = new ClusterMO(context, morCluster);
+            DatacenterMO dcMo = new DatacenterMO(context, morDc);
+            ClusterMO clusterMo = new ClusterMO(context, hyperHost.getHyperHostCluster());
 
             if (vol.getVolumeType() == Volume.Type.ROOT) {
                 String vmName = vol.getVmName();
+                s_logger.info("DeleteCommand contains the root volume of VM: " + vmName);
                 if (vmName != null) {
-                    VirtualMachineMO vmMo = clusterMo.findVmOnHyperHost(vmName);
+                    VirtualMachineMO vmMo = dcMo.findVm(vmName);
                     if (vmMo != null) {
                         if (s_logger.isInfoEnabled()) {
                             s_logger.info("Destroy root volume and VM itself. vmName " + vmName);
@@ -5891,13 +5892,15 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                         dsMo.deleteFile(vol.getPath() + "-delta.vmdk", morDc, true);
                     }
                     return new Answer(cmd, true, "Success");
+                } else {
+                    s_logger.info("DeleteCommand contains a root volume but it does not have associated VM name");
                 }
 
                 if (s_logger.isInfoEnabled()) {
                     s_logger.info("Destroy root volume directly from datastore");
                 }
             } else {
-                // evitTemplate will be converted into DestroyCommand, test if we are running in this case
+                // evitTemplate will be converted into DeleteCommand, test if we are running in this case
                 VirtualMachineMO vmMo = clusterMo.findVmOnHyperHost(vol.getPath());
                 if (vmMo != null) {
                     if (s_logger.isInfoEnabled())
@@ -5950,7 +5953,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 invalidateServiceContext();
             }
 
-            String msg = "DestroyCommand failed due to " + VmwareHelper.getExceptionMessage(e);
+            String msg = "DeleteCommand failed due to " + VmwareHelper.getExceptionMessage(e);
             s_logger.error(msg, e);
             return new Answer(cmd, false, msg);
         }
