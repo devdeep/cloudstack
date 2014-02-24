@@ -18,12 +18,12 @@ package com.cloud.agent.api;
 
 import java.util.HashMap;
 
-import com.cloud.utils.Pair;
+import com.cloud.utils.Ternary;
 import com.cloud.vm.VirtualMachine.State;
 
-public class ClusterSyncAnswer extends Answer {
+public class ClusterVMMetaDataSyncAnswer extends Answer {
     private long _clusterId;
-    private HashMap<String, Pair<String, State>> _newStates;
+    private HashMap<String, String> _vmMetaDatum;
     private boolean _isExecuted=false;
 
     // this is here because a cron command answer is being sent twice
@@ -38,9 +38,9 @@ public class ClusterSyncAnswer extends Answer {
     }
 
 
-    public ClusterSyncAnswer(long clusterId, HashMap<String, Pair<String, State>> newStates){
+    public ClusterVMMetaDataSyncAnswer(long clusterId, HashMap<String, String> vmMetaDatum){
         _clusterId = clusterId;
-        _newStates = newStates;
+        _vmMetaDatum = vmMetaDatum;
         result = true;
     }
 
@@ -48,8 +48,8 @@ public class ClusterSyncAnswer extends Answer {
         return _clusterId;
     }
 
-    public HashMap<String, Pair<String, State>> getNewStates() {
-        return _newStates;
+    public HashMap<String, String> getVMMetaDatum() {
+        return _vmMetaDatum;
     }
 
 }

@@ -6767,7 +6767,7 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                     if (!isTemplate) {
                         newStates.put(
                                 name,
-                                new HostVmStateReportEntry(convertPowerState(powerState), hyperHost.getHyperHostName(), null)
+                                new HostVmStateReportEntry(convertPowerState(powerState), hyperHost.getHyperHostName())
                                 );
                     }
                 }

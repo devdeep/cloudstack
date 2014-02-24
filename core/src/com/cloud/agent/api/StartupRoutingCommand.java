@@ -22,7 +22,7 @@ import java.util.Map;
 import com.cloud.host.Host;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.network.Networks.RouterPrivateIpStrategy;
-import com.cloud.utils.Ternary;
+import com.cloud.utils.Pair;
 import com.cloud.vm.VirtualMachine.State;
 
 public class StartupRoutingCommand extends StartupCommand {
@@ -58,7 +58,7 @@ public class StartupRoutingCommand extends StartupCommand {
     // TODO vmsync
     // deprecated, will delete after full replacement
     Map<String, VmState> vms;
-    HashMap<String, Ternary<String, State, String>> _clusterVMStates;
+    HashMap<String, Pair<String, State>> _clusterVMStates;
     
     String caps;
     String pool;
@@ -148,7 +148,7 @@ public class StartupRoutingCommand extends StartupCommand {
         }
     }
 
-    public void setClusterVMStateChanges(HashMap<String, Ternary<String, State, String>> allStates){
+    public void setClusterVMStateChanges(HashMap<String, Pair<String, State>> allStates){
     	_clusterVMStates = allStates;
     }
 
@@ -180,7 +180,7 @@ public class StartupRoutingCommand extends StartupCommand {
         return vms;
     }
 
-    public HashMap<String, Ternary<String, State, String>> getClusterVMStateChanges() {
+    public HashMap<String, Pair<String, State>> getClusterVMStateChanges() {
         return _clusterVMStates;
     }
 

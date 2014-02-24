@@ -452,14 +452,5 @@ public class XenServer610Resource extends XenServer56FP1Resource {
     @Override
     protected void plugDom0Vif(Connection conn, VIF dom0Vif) throws XmlRpcException, XenAPIException {
         // do nothing. In xenserver 6.1 and beyond this step isn't needed.
-    }    
-  
-    @Override
-    protected String getVMXenToolsVersion(Map<String, String> platform) {
-        if (platform.containsKey("device_id")) {
-            return "xenserver61";
-        }
-        return "xenserver56";
-    }
-    
+    }  
 }

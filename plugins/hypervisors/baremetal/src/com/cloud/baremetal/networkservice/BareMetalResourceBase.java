@@ -354,7 +354,7 @@ public class BareMetalResourceBase extends ManagerBase implements ServerResource
                 states.put(
                 	vm.getInstanceName(), 
                 	new HostVmStateReportEntry(
-                	    vm.getState() == State.Running ? PowerState.PowerOn : PowerState.PowerOff, "host-" + hostId, null
+                	    vm.getState() == State.Running ? PowerState.PowerOn : PowerState.PowerOff, "host-" + hostId
                 	)
                 );
             }

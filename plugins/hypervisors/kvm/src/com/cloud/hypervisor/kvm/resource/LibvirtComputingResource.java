@@ -4469,7 +4469,7 @@ ServerResource {
                 // Stopped VM around, to work-around that, reporting only powered-on VM
                 //
                 if (state == PowerState.PowerOn)
-                    vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName(), null));
+                    vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName()));
             } catch (final LibvirtException e) {
                 s_logger.warn("Unable to get vms", e);
             } finally {
@@ -4499,7 +4499,7 @@ ServerResource {
                 // Stopped VM around, to work-around that, reporting only powered-on VM
                 //
                 if (state == PowerState.PowerOn)
-                    vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName(), null));
+                    vmStates.put(vmName, new HostVmStateReportEntry(state, conn.getHostName()));
             } catch (final LibvirtException e) {
                 s_logger.warn("Unable to get vms", e);
             } finally {
