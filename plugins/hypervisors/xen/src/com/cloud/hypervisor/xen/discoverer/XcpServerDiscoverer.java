@@ -697,7 +697,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         _resourceMgr.deleteRoutingHost(host, isForced, isForceDeleteStorage);
         boolean success = false;
         if (host.getClusterId() != null) {
-            List<HostVO> hosts = _resourceMgr.listAllUpAndEnabledHosts(com.cloud.host.Host.Type.Routing, host.getClusterId(), host.getPodId(), host.getDataCenterId());
+            List<HostVO> hosts = _resourceMgr.listAllUpAndEnabledOrMaintenaceHosts(com.cloud.host.Host.Type.Routing, host.getClusterId(), host.getPodId(), host.getDataCenterId());
             for (HostVO thost : hosts) {
                 long thostId = thost.getId();
                 PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
@@ -721,6 +721,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                         + host.getGuid() + "in this host " + host.getPrivateIpAddress();
                 s_logger.warn(msg);
                 _alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, host.getDataCenterId(), host.getPodId(), "Unable to eject host " + host.getGuid(), msg);
+                throw new CloudRuntimeException(msg);
             }
         }
         return new DeleteHostAnswer(success);
