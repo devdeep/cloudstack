@@ -16,85 +16,6 @@
 // under the License.
 package com.cloud.hypervisor.xen.resource;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Queue;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
-
-import javax.ejb.Local;
-import javax.naming.ConfigurationException;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
-import org.apache.commons.codec.binary.Base64;
-import org.apache.log4j.Logger;
-import org.apache.xmlrpc.XmlRpcException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-
-import com.google.gson.Gson;
-import com.trilead.ssh2.SCPClient;
-import com.xensource.xenapi.Bond;
-import com.xensource.xenapi.Connection;
-import com.xensource.xenapi.Console;
-import com.xensource.xenapi.Host;
-import com.xensource.xenapi.HostCpu;
-import com.xensource.xenapi.HostMetrics;
-import com.xensource.xenapi.Network;
-import com.xensource.xenapi.PBD;
-import com.xensource.xenapi.PIF;
-import com.xensource.xenapi.PIF.Record;
-import com.xensource.xenapi.Pool;
-import com.xensource.xenapi.SR;
-import com.xensource.xenapi.Session;
-import com.xensource.xenapi.Task;
-import com.xensource.xenapi.Types;
-import com.xensource.xenapi.Types.BadAsyncResult;
-import com.xensource.xenapi.Types.BadServerResponse;
-import com.xensource.xenapi.Types.ConsoleProtocol;
-import com.xensource.xenapi.Types.IpConfigurationMode;
-import com.xensource.xenapi.Types.OperationNotAllowed;
-import com.xensource.xenapi.Types.SrFull;
-import com.xensource.xenapi.Types.VbdType;
-import com.xensource.xenapi.Types.VmBadPowerState;
-import com.xensource.xenapi.Types.VmPowerState;
-import com.xensource.xenapi.Types.XenAPIException;
-import com.xensource.xenapi.VBD;
-import com.xensource.xenapi.VBDMetrics;
-import com.xensource.xenapi.VDI;
-import com.xensource.xenapi.VIF;
-import com.xensource.xenapi.VLAN;
-import com.xensource.xenapi.VM;
-import com.xensource.xenapi.VMGuestMetrics;
-import com.xensource.xenapi.XenAPIObject;
-
-import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
-import org.apache.cloudstack.storage.to.TemplateObjectTO;
-import org.apache.cloudstack.storage.to.VolumeObjectTO;
-
 import com.cloud.agent.IAgentControl;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.AttachIsoCommand;
@@ -116,8 +37,8 @@ import com.cloud.agent.api.CheckVirtualMachineCommand;
 import com.cloud.agent.api.CleanupNetworkRulesCmd;
 import com.cloud.agent.api.ClusterSyncAnswer;
 import com.cloud.agent.api.ClusterSyncCommand;
-import com.cloud.agent.api.ClusterVMMetaDataSyncCommand;
 import com.cloud.agent.api.ClusterVMMetaDataSyncAnswer;
+import com.cloud.agent.api.ClusterVMMetaDataSyncCommand;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.CreateStoragePoolCommand;
 import com.cloud.agent.api.CreateVMSnapshotAnswer;
@@ -286,6 +207,83 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachine.PowerState;
 import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.snapshot.VMSnapshot;
+import com.google.gson.Gson;
+import com.trilead.ssh2.SCPClient;
+import com.xensource.xenapi.Bond;
+import com.xensource.xenapi.Connection;
+import com.xensource.xenapi.Console;
+import com.xensource.xenapi.Host;
+import com.xensource.xenapi.HostCpu;
+import com.xensource.xenapi.HostMetrics;
+import com.xensource.xenapi.Network;
+import com.xensource.xenapi.PBD;
+import com.xensource.xenapi.PIF;
+import com.xensource.xenapi.PIF.Record;
+import com.xensource.xenapi.Pool;
+import com.xensource.xenapi.SR;
+import com.xensource.xenapi.Session;
+import com.xensource.xenapi.Task;
+import com.xensource.xenapi.Types;
+import com.xensource.xenapi.Types.BadAsyncResult;
+import com.xensource.xenapi.Types.BadServerResponse;
+import com.xensource.xenapi.Types.ConsoleProtocol;
+import com.xensource.xenapi.Types.IpConfigurationMode;
+import com.xensource.xenapi.Types.OperationNotAllowed;
+import com.xensource.xenapi.Types.SrFull;
+import com.xensource.xenapi.Types.VbdType;
+import com.xensource.xenapi.Types.VmBadPowerState;
+import com.xensource.xenapi.Types.VmPowerState;
+import com.xensource.xenapi.Types.XenAPIException;
+import com.xensource.xenapi.VBD;
+import com.xensource.xenapi.VBDMetrics;
+import com.xensource.xenapi.VDI;
+import com.xensource.xenapi.VIF;
+import com.xensource.xenapi.VLAN;
+import com.xensource.xenapi.VM;
+import com.xensource.xenapi.VMGuestMetrics;
+import com.xensource.xenapi.XenAPIObject;
+import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
+import org.apache.cloudstack.storage.to.TemplateObjectTO;
+import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.log4j.Logger;
+import org.apache.xmlrpc.XmlRpcException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+
+import javax.ejb.Local;
+import javax.naming.ConfigurationException;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * CitrixResourceBase encapsulates the calls to the XenServer Xapi process
@@ -346,6 +344,8 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     protected List<VIF> _tmpDom0Vif = new ArrayList<VIF>();
     protected StorageSubsystemCommandHandler storageHandler;
     protected int _maxNics = 7;
+
+    protected Map<String, Lock> _vrLockMap = new HashMap<String, Lock>();
 
     public enum SRType {
         NFS, LVM, ISCSI, ISO, LVMOISCSI, LVMOHBA, EXT, FILE;
@@ -481,36 +481,91 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         return new StringBuilder("Host ").append(_host.ip).append(" ").append(obj.toWireString()).append(": ").append(msg).toString();
     }
 
+    public Answer executeNetworkElementCommand(NetworkElementCommand cmd) {
+        String routerName = cmd.getAccessDetail(NetworkElementCommand.ROUTER_NAME);
+        Lock lock;
+        if (_vrLockMap.containsKey(routerName)) {
+            lock = _vrLockMap.get(routerName);
+        } else {
+            lock = new ReentrantLock();
+            _vrLockMap.put(routerName, lock);
+        }
+        lock.lock();
+        try {
+            Answer answer = null;
+            Class<? extends Command> clz = cmd.getClass();
+            if (clz == SetPortForwardingRulesCommand.class) {
+                answer = execute((SetPortForwardingRulesCommand) cmd);
+            } else if (clz == SetStaticNatRulesCommand.class) {
+                answer = execute((SetStaticNatRulesCommand) cmd);
+            } else if (clz == LoadBalancerConfigCommand.class) {
+                answer = execute((LoadBalancerConfigCommand) cmd);
+            } else if (clz == IpAssocCommand.class) {
+                answer = execute((IpAssocCommand) cmd);
+            } else if (clz == SavePasswordCommand.class) {
+                answer = execute((SavePasswordCommand) cmd);
+            } else if (clz == DhcpEntryCommand.class) {
+                answer = execute((DhcpEntryCommand) cmd);
+            } else if (clz == CreateIpAliasCommand.class) {
+                answer = execute((CreateIpAliasCommand) cmd);
+            } else if (clz == DnsMasqConfigCommand.class) {
+                answer = execute((DnsMasqConfigCommand) cmd);
+            } else if (clz == DeleteIpAliasCommand.class) {
+                answer = execute((DeleteIpAliasCommand) cmd);
+            } else if (clz == VmDataCommand.class) {
+                answer = execute((VmDataCommand) cmd);
+            } else if (clz == RemoteAccessVpnCfgCommand.class) {
+                answer = execute((RemoteAccessVpnCfgCommand) cmd);
+            } else if (clz == VpnUsersCfgCommand.class) {
+                answer = execute((VpnUsersCfgCommand) cmd);
+            } else if (clz == CheckRouterCommand.class) {
+                answer = execute((CheckRouterCommand) cmd);
+            } else  if (clz == SetFirewallRulesCommand.class) {
+                answer = execute((SetFirewallRulesCommand)cmd);
+            } else if (clz == BumpUpPriorityCommand.class) {
+                answer = execute((BumpUpPriorityCommand)cmd);
+            } else if (clz == GetDomRVersionCmd.class) {
+                answer = execute((GetDomRVersionCmd)cmd);
+            } else if (clz == SetupGuestNetworkCommand.class) {
+                answer = execute((SetupGuestNetworkCommand) cmd);
+            } else if (clz == IpAssocVpcCommand.class) {
+                answer = execute((IpAssocVpcCommand) cmd);
+            } else if (clz == SetSourceNatCommand.class) {
+                answer = execute((SetSourceNatCommand) cmd);
+            } else if (clz == SetNetworkACLCommand.class) {
+                answer = execute((SetNetworkACLCommand) cmd);
+            }else if (clz == SetPortForwardingRulesVpcCommand.class) {
+                answer = execute((SetPortForwardingRulesVpcCommand) cmd);
+            } else if (clz == Site2SiteVpnCfgCommand.class) {
+                answer = execute((Site2SiteVpnCfgCommand) cmd);
+            } else if (clz == CheckS2SVpnConnectionsCommand.class) {
+                answer = execute((CheckS2SVpnConnectionsCommand) cmd);
+            } else if (clz == SetStaticRouteCommand.class) {
+                answer = execute((SetStaticRouteCommand) cmd);
+            } else if (clz == SetMonitorServiceCommand.class) {
+                answer = execute((SetMonitorServiceCommand) cmd);
+            } else {
+                answer = Answer.createUnsupportedCommandAnswer(cmd);
+            }
+            return answer;
+        } finally {
+            lock.unlock();
+        }
+    }
 
     @Override
     public Answer executeRequest(Command cmd) {
+        if (cmd instanceof NetworkElementCommand) {
+            return executeNetworkElementCommand((NetworkElementCommand)cmd);
+        }
+
         Class<? extends Command> clazz = cmd.getClass();
         if (clazz == CreateCommand.class) {
             return execute((CreateCommand) cmd);
-        } else if (clazz == SetPortForwardingRulesCommand.class) {
-            return execute((SetPortForwardingRulesCommand) cmd);
-        } else if (clazz == SetStaticNatRulesCommand.class) {
-            return execute((SetStaticNatRulesCommand) cmd);
-        }  else if (clazz == LoadBalancerConfigCommand.class) {
-            return execute((LoadBalancerConfigCommand) cmd);
-        } else if (clazz == IpAssocCommand.class) {
-            return execute((IpAssocCommand) cmd);
         } else if (clazz == CheckConsoleProxyLoadCommand.class) {
             return execute((CheckConsoleProxyLoadCommand) cmd);
         } else if (clazz == WatchConsoleProxyLoadCommand.class) {
             return execute((WatchConsoleProxyLoadCommand) cmd);
-        } else if (clazz == SavePasswordCommand.class) {
-            return execute((SavePasswordCommand) cmd);
-        } else if (clazz == DhcpEntryCommand.class) {
-            return execute((DhcpEntryCommand) cmd);
-        } else if (clazz == CreateIpAliasCommand.class) {
-            return execute((CreateIpAliasCommand) cmd);
-        } else if (clazz == DnsMasqConfigCommand.class) {
-            return execute((DnsMasqConfigCommand) cmd);
-        } else if (clazz == DeleteIpAliasCommand.class) {
-            return execute((DeleteIpAliasCommand) cmd);
-        } else if (clazz == VmDataCommand.class) {
-            return execute((VmDataCommand) cmd);
         } else if (clazz == ReadyCommand.class) {
             return execute((ReadyCommand) cmd);
         } else if (clazz == GetHostStatsCommand.class) {
@@ -569,10 +624,6 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             return execute((PoolEjectCommand) cmd);
         } else if (clazz == StartCommand.class) {
             return execute((StartCommand)cmd);
-        } else if (clazz == RemoteAccessVpnCfgCommand.class) {
-            return execute((RemoteAccessVpnCfgCommand)cmd);
-        } else if (clazz == VpnUsersCfgCommand.class) {
-            return execute((VpnUsersCfgCommand)cmd);
         } else if (clazz == CheckSshCommand.class) {
             return execute((CheckSshCommand)cmd);
         } else if (clazz == SecurityGroupRulesCmd.class) {
@@ -599,40 +650,16 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             return execute((OvsDestroyTunnelCommand)cmd);
         } else if (clazz == UpdateHostPasswordCommand.class) {
             return execute((UpdateHostPasswordCommand)cmd);
-        } else if (cmd instanceof CheckRouterCommand) {
-            return execute((CheckRouterCommand)cmd);
-        } else if (cmd instanceof SetFirewallRulesCommand) {
-            return execute((SetFirewallRulesCommand)cmd);
-        } else if (cmd instanceof BumpUpPriorityCommand) {
-            return execute((BumpUpPriorityCommand)cmd);
         } else if (cmd instanceof ClusterSyncCommand) {
             return execute((ClusterSyncCommand)cmd);
         } else if (cmd instanceof ClusterVMMetaDataSyncCommand) {
             return execute((ClusterVMMetaDataSyncCommand)cmd);
-        } else if (cmd instanceof GetDomRVersionCmd) {
-            return execute((GetDomRVersionCmd)cmd);
         } else if (clazz == CheckNetworkCommand.class) {
             return execute((CheckNetworkCommand) cmd);
-        } else if (clazz == SetupGuestNetworkCommand.class) {
-            return execute((SetupGuestNetworkCommand) cmd);
         } else if (clazz == PlugNicCommand.class) {
             return execute((PlugNicCommand) cmd);
         } else if (clazz == UnPlugNicCommand.class) {
             return execute((UnPlugNicCommand) cmd);
-        } else if (clazz == IpAssocVpcCommand.class) {
-            return execute((IpAssocVpcCommand) cmd);
-        } else if (clazz == SetSourceNatCommand.class) {
-            return execute((SetSourceNatCommand) cmd);
-        } else if (clazz == SetNetworkACLCommand.class) {
-            return execute((SetNetworkACLCommand) cmd);
-        } else if (clazz == SetPortForwardingRulesVpcCommand.class) {
-            return execute((SetPortForwardingRulesVpcCommand) cmd);
-        } else if (clazz == SetStaticRouteCommand.class) {
-            return execute((SetStaticRouteCommand) cmd);
-        } else if (clazz == Site2SiteVpnCfgCommand.class) {
-            return execute((Site2SiteVpnCfgCommand) cmd);
-        } else if (clazz == CheckS2SVpnConnectionsCommand.class) {
-            return execute((CheckS2SVpnConnectionsCommand) cmd);
         } else if (cmd instanceof StorageSubSystemCommand) {
             return storageHandler.handleStorageCommands((StorageSubSystemCommand)cmd);
         } else if (clazz == CreateVMSnapshotCommand.class) {
@@ -647,8 +674,6 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             return execute((ScaleVmCommand) cmd);
         } else if (clazz == PvlanSetupCommand.class) {
             return execute((PvlanSetupCommand) cmd);
-        } else if (clazz == SetMonitorServiceCommand.class) {
-            return execute((SetMonitorServiceCommand) cmd);
         } else {
             return Answer.createUnsupportedCommandAnswer(cmd);
         }

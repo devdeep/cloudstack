@@ -16,99 +16,6 @@
 // under the License.
 package com.cloud.hypervisor.vmware.resource;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.nio.channels.SocketChannel;
-import java.rmi.RemoteException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Random;
-import java.util.Set;
-import java.util.TimeZone;
-import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-import javax.naming.ConfigurationException;
-
-import org.apache.log4j.Logger;
-import org.apache.log4j.NDC;
-
-import com.google.gson.Gson;
-import com.vmware.vim25.AboutInfo;
-import com.vmware.vim25.BoolPolicy;
-import com.vmware.vim25.ClusterDasConfigInfo;
-import com.vmware.vim25.ComputeResourceSummary;
-import com.vmware.vim25.CustomFieldStringValue;
-import com.vmware.vim25.DVPortConfigInfo;
-import com.vmware.vim25.DVPortConfigSpec;
-import com.vmware.vim25.DatastoreSummary;
-import com.vmware.vim25.DistributedVirtualPort;
-import com.vmware.vim25.DistributedVirtualSwitchPortConnection;
-import com.vmware.vim25.DistributedVirtualSwitchPortCriteria;
-import com.vmware.vim25.DynamicProperty;
-import com.vmware.vim25.GuestInfo;
-import com.vmware.vim25.HostCapability;
-import com.vmware.vim25.HostHostBusAdapter;
-import com.vmware.vim25.HostInternetScsiHba;
-import com.vmware.vim25.HostInternetScsiHbaAuthenticationProperties;
-import com.vmware.vim25.HostInternetScsiHbaStaticTarget;
-import com.vmware.vim25.HostInternetScsiTargetTransport;
-import com.vmware.vim25.HostScsiDisk;
-import com.vmware.vim25.HostScsiTopology;
-import com.vmware.vim25.HostScsiTopologyInterface;
-import com.vmware.vim25.HostScsiTopologyLun;
-import com.vmware.vim25.HostScsiTopologyTarget;
-import com.vmware.vim25.ManagedObjectReference;
-import com.vmware.vim25.ObjectContent;
-import com.vmware.vim25.OptionValue;
-import com.vmware.vim25.PerfCounterInfo;
-import com.vmware.vim25.PerfEntityMetric;
-import com.vmware.vim25.PerfEntityMetricBase;
-import com.vmware.vim25.PerfMetricId;
-import com.vmware.vim25.PerfMetricIntSeries;
-import com.vmware.vim25.PerfMetricSeries;
-import com.vmware.vim25.PerfQuerySpec;
-import com.vmware.vim25.PerfSampleInfo;
-import com.vmware.vim25.RuntimeFaultFaultMsg;
-import com.vmware.vim25.ToolsUnavailableFaultMsg;
-import com.vmware.vim25.VMwareDVSPortSetting;
-import com.vmware.vim25.VimPortType;
-import com.vmware.vim25.VirtualDevice;
-import com.vmware.vim25.VirtualDeviceBackingInfo;
-import com.vmware.vim25.VirtualDeviceConfigSpec;
-import com.vmware.vim25.VirtualDeviceConfigSpecOperation;
-import com.vmware.vim25.VirtualDisk;
-import com.vmware.vim25.VirtualEthernetCard;
-import com.vmware.vim25.VirtualEthernetCardDistributedVirtualPortBackingInfo;
-import com.vmware.vim25.VirtualEthernetCardNetworkBackingInfo;
-import com.vmware.vim25.VirtualMachineConfigSpec;
-import com.vmware.vim25.VirtualMachineGuestOsIdentifier;
-import com.vmware.vim25.VirtualMachinePowerState;
-import com.vmware.vim25.VirtualMachineRelocateSpec;
-import com.vmware.vim25.VirtualMachineRelocateSpecDiskLocator;
-import com.vmware.vim25.VirtualMachineRuntimeInfo;
-import com.vmware.vim25.VmwareDistributedVirtualSwitchVlanIdSpec;
-
-import org.apache.cloudstack.api.ApiConstants;
-import org.apache.cloudstack.storage.command.DeleteCommand;
-import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
-import org.apache.cloudstack.storage.to.TemplateObjectTO;
-import org.apache.cloudstack.storage.to.VolumeObjectTO;
-
 import com.cloud.agent.IAgentControl;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.AttachIsoCommand;
@@ -330,6 +237,97 @@ import com.cloud.vm.VirtualMachine.PowerState;
 import com.cloud.vm.VirtualMachine.State;
 import com.cloud.vm.VirtualMachineName;
 import com.cloud.vm.VmDetailConstants;
+import com.google.gson.Gson;
+import com.vmware.vim25.AboutInfo;
+import com.vmware.vim25.BoolPolicy;
+import com.vmware.vim25.ClusterDasConfigInfo;
+import com.vmware.vim25.ComputeResourceSummary;
+import com.vmware.vim25.CustomFieldStringValue;
+import com.vmware.vim25.DVPortConfigInfo;
+import com.vmware.vim25.DVPortConfigSpec;
+import com.vmware.vim25.DatastoreSummary;
+import com.vmware.vim25.DistributedVirtualPort;
+import com.vmware.vim25.DistributedVirtualSwitchPortConnection;
+import com.vmware.vim25.DistributedVirtualSwitchPortCriteria;
+import com.vmware.vim25.DynamicProperty;
+import com.vmware.vim25.GuestInfo;
+import com.vmware.vim25.HostCapability;
+import com.vmware.vim25.HostHostBusAdapter;
+import com.vmware.vim25.HostInternetScsiHba;
+import com.vmware.vim25.HostInternetScsiHbaAuthenticationProperties;
+import com.vmware.vim25.HostInternetScsiHbaStaticTarget;
+import com.vmware.vim25.HostInternetScsiTargetTransport;
+import com.vmware.vim25.HostScsiDisk;
+import com.vmware.vim25.HostScsiTopology;
+import com.vmware.vim25.HostScsiTopologyInterface;
+import com.vmware.vim25.HostScsiTopologyLun;
+import com.vmware.vim25.HostScsiTopologyTarget;
+import com.vmware.vim25.ManagedObjectReference;
+import com.vmware.vim25.ObjectContent;
+import com.vmware.vim25.OptionValue;
+import com.vmware.vim25.PerfCounterInfo;
+import com.vmware.vim25.PerfEntityMetric;
+import com.vmware.vim25.PerfEntityMetricBase;
+import com.vmware.vim25.PerfMetricId;
+import com.vmware.vim25.PerfMetricIntSeries;
+import com.vmware.vim25.PerfMetricSeries;
+import com.vmware.vim25.PerfQuerySpec;
+import com.vmware.vim25.PerfSampleInfo;
+import com.vmware.vim25.RuntimeFaultFaultMsg;
+import com.vmware.vim25.ToolsUnavailableFaultMsg;
+import com.vmware.vim25.VMwareDVSPortSetting;
+import com.vmware.vim25.VimPortType;
+import com.vmware.vim25.VirtualDevice;
+import com.vmware.vim25.VirtualDeviceBackingInfo;
+import com.vmware.vim25.VirtualDeviceConfigSpec;
+import com.vmware.vim25.VirtualDeviceConfigSpecOperation;
+import com.vmware.vim25.VirtualDisk;
+import com.vmware.vim25.VirtualEthernetCard;
+import com.vmware.vim25.VirtualEthernetCardDistributedVirtualPortBackingInfo;
+import com.vmware.vim25.VirtualEthernetCardNetworkBackingInfo;
+import com.vmware.vim25.VirtualMachineConfigSpec;
+import com.vmware.vim25.VirtualMachineGuestOsIdentifier;
+import com.vmware.vim25.VirtualMachinePowerState;
+import com.vmware.vim25.VirtualMachineRelocateSpec;
+import com.vmware.vim25.VirtualMachineRelocateSpecDiskLocator;
+import com.vmware.vim25.VirtualMachineRuntimeInfo;
+import com.vmware.vim25.VmwareDistributedVirtualSwitchVlanIdSpec;
+import org.apache.cloudstack.api.ApiConstants;
+import org.apache.cloudstack.storage.command.DeleteCommand;
+import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
+import org.apache.cloudstack.storage.to.TemplateObjectTO;
+import org.apache.cloudstack.storage.to.VolumeObjectTO;
+import org.apache.log4j.Logger;
+import org.apache.log4j.NDC;
+
+import javax.naming.ConfigurationException;
+import java.io.File;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.nio.channels.SocketChannel;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.Set;
+import java.util.TimeZone;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class VmwareResource implements StoragePoolResource, ServerResource, VmwareHostService {
     private static final Logger s_logger = Logger.getLogger(VmwareResource.class);
@@ -378,6 +376,8 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
 
     protected volatile long _cmdSequence = 1;
 
+    protected Map<String, Lock> _vrLockMap = new HashMap<String, Lock>();
+
     protected StorageSubsystemCommandHandler storageHandler;
 
     protected static HashMap<VirtualMachinePowerState, PowerState> s_powerStatesTable;
@@ -408,6 +408,78 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         _gson = GsonHelper.getGsonLogger();
     }
 
+    public Answer executeNetworkElementCommand(NetworkElementCommand cmd) {
+        String routerName = cmd.getAccessDetail(NetworkElementCommand.ROUTER_NAME);
+        Lock lock;
+        if (_vrLockMap.containsKey(routerName)) {
+            lock = _vrLockMap.get(routerName);
+        } else {
+            lock = new ReentrantLock();
+            _vrLockMap.put(routerName, lock);
+        }
+        lock.lock();
+        try {
+            Answer answer = null;
+            Class<? extends Command> clz = cmd.getClass();
+            if (clz == SetPortForwardingRulesCommand.class) {
+                answer = execute((SetPortForwardingRulesCommand) cmd);
+            } else if (clz == SetStaticNatRulesCommand.class) {
+                answer = execute((SetStaticNatRulesCommand) cmd);
+            } else if (clz == LoadBalancerConfigCommand.class) {
+                answer = execute((LoadBalancerConfigCommand) cmd);
+            } else if (clz == IpAssocCommand.class) {
+                answer = execute((IpAssocCommand) cmd);
+            } else if (clz == SavePasswordCommand.class) {
+                answer = execute((SavePasswordCommand) cmd);
+            } else if (clz == DhcpEntryCommand.class) {
+                answer = execute((DhcpEntryCommand) cmd);
+            } else if (clz == CreateIpAliasCommand.class) {
+                answer = execute((CreateIpAliasCommand) cmd);
+            } else if (clz == DnsMasqConfigCommand.class) {
+                answer = execute((DnsMasqConfigCommand) cmd);
+            } else if (clz == DeleteIpAliasCommand.class) {
+                answer = execute((DeleteIpAliasCommand) cmd);
+            } else if (clz == VmDataCommand.class) {
+                answer = execute((VmDataCommand) cmd);
+            } else if (clz == RemoteAccessVpnCfgCommand.class) {
+                answer = execute((RemoteAccessVpnCfgCommand) cmd);
+            } else if (clz == VpnUsersCfgCommand.class) {
+                answer = execute((VpnUsersCfgCommand) cmd);
+            } else if (clz == CheckRouterCommand.class) {
+                answer = execute((CheckRouterCommand) cmd);
+            } else  if (clz == SetFirewallRulesCommand.class) {
+                answer = execute((SetFirewallRulesCommand)cmd);
+            } else if (clz == BumpUpPriorityCommand.class) {
+                answer = execute((BumpUpPriorityCommand)cmd);
+            } else if (clz == GetDomRVersionCmd.class) {
+                answer = execute((GetDomRVersionCmd)cmd);
+            } else if (clz == SetupGuestNetworkCommand.class) {
+                answer = execute((SetupGuestNetworkCommand) cmd);
+            } else if (clz == IpAssocVpcCommand.class) {
+                answer = execute((IpAssocVpcCommand) cmd);
+            } else if (clz == SetSourceNatCommand.class) {
+                answer = execute((SetSourceNatCommand) cmd);
+            } else if (clz == SetNetworkACLCommand.class) {
+                answer = execute((SetNetworkACLCommand) cmd);
+            }else if (clz == SetPortForwardingRulesVpcCommand.class) {
+                answer = execute((SetPortForwardingRulesVpcCommand) cmd);
+            } else if (clz == Site2SiteVpnCfgCommand.class) {
+                answer = execute((Site2SiteVpnCfgCommand) cmd);
+            } else if (clz == CheckS2SVpnConnectionsCommand.class) {
+                answer = execute((CheckS2SVpnConnectionsCommand) cmd);
+            } else if (clz == SetStaticRouteCommand.class) {
+                answer = execute((SetStaticRouteCommand) cmd);
+            } else if (clz == SetMonitorServiceCommand.class) {
+                answer = execute((SetMonitorServiceCommand) cmd);
+            } else {
+                answer = Answer.createUnsupportedCommandAnswer(cmd);
+            }
+            return answer;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     @Override
     public Answer executeRequest(Command cmd) {
 
@@ -425,29 +497,13 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             mbean.addProp("Sequence", String.valueOf(cmdSequence));
             mbean.addProp("Name", cmd.getClass().getSimpleName());
 
+            if (cmd instanceof NetworkElementCommand) {
+                answer = executeNetworkElementCommand((NetworkElementCommand)cmd);
+            }
+
             Class<? extends Command> clz = cmd.getClass();
             if (clz == CreateCommand.class) {
                 answer = execute((CreateCommand) cmd);
-            } else if (clz == SetPortForwardingRulesCommand.class) {
-                answer = execute((SetPortForwardingRulesCommand) cmd);
-            } else if (clz == SetStaticNatRulesCommand.class) {
-                answer = execute((SetStaticNatRulesCommand) cmd);
-            } else if (clz == LoadBalancerConfigCommand.class) {
-                answer = execute((LoadBalancerConfigCommand) cmd);
-            } else if (clz == IpAssocCommand.class) {
-                answer = execute((IpAssocCommand) cmd);
-            } else if (clz == SavePasswordCommand.class) {
-                answer = execute((SavePasswordCommand) cmd);
-            } else if (clz == DhcpEntryCommand.class) {
-                answer = execute((DhcpEntryCommand) cmd);
-            } else if (clz == CreateIpAliasCommand.class) {
-                return execute((CreateIpAliasCommand) cmd);
-            } else if (clz == DnsMasqConfigCommand.class) {
-                return execute((DnsMasqConfigCommand) cmd);
-            } else if (clz == DeleteIpAliasCommand.class) {
-                return execute((DeleteIpAliasCommand) cmd);
-            } else if (clz == VmDataCommand.class) {
-                answer = execute((VmDataCommand) cmd);
             } else if (clz == ReadyCommand.class) {
                 answer = execute((ReadyCommand) cmd);
             } else if (clz == GetHostStatsCommand.class) {
@@ -524,46 +580,20 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 answer = execute((NetworkUsageCommand) cmd);
             } else if (clz == StartCommand.class) {
                 answer = execute((StartCommand) cmd);
-            } else if (clz == RemoteAccessVpnCfgCommand.class) {
-                answer = execute((RemoteAccessVpnCfgCommand) cmd);
-            } else if (clz == VpnUsersCfgCommand.class) {
-                answer = execute((VpnUsersCfgCommand) cmd);
             } else if (clz == CheckSshCommand.class) {
                 answer = execute((CheckSshCommand) cmd);
-            } else if (clz == CheckRouterCommand.class) {
-                answer = execute((CheckRouterCommand) cmd);
-            } else  if (clz == SetFirewallRulesCommand.class) {
-                answer = execute((SetFirewallRulesCommand)cmd);
-            } else if (clz == BumpUpPriorityCommand.class) {
-                answer = execute((BumpUpPriorityCommand)cmd);
-            } else if (clz == GetDomRVersionCmd.class) {
-                answer = execute((GetDomRVersionCmd)cmd);
             } else if (clz == CheckNetworkCommand.class) {
                 answer = execute((CheckNetworkCommand) cmd);
-            } else if (clz == SetupGuestNetworkCommand.class) {
-                answer = execute((SetupGuestNetworkCommand) cmd);
-            } else if (clz == IpAssocVpcCommand.class) {
-                answer = execute((IpAssocVpcCommand) cmd);
             } else if (clz == PlugNicCommand.class) {
                 answer = execute((PlugNicCommand) cmd);
             } else if (clz == UnPlugNicCommand.class) {
                 answer = execute((UnPlugNicCommand) cmd);
-            } else if (clz == SetSourceNatCommand.class) {
-                answer = execute((SetSourceNatCommand) cmd);
-            } else if (clz == SetNetworkACLCommand.class) {
-                answer = execute((SetNetworkACLCommand) cmd);
             } else if (cmd instanceof CreateVMSnapshotCommand) {
                 return execute((CreateVMSnapshotCommand)cmd);
             } else if(cmd instanceof DeleteVMSnapshotCommand){
                 return execute((DeleteVMSnapshotCommand)cmd);
             } else if(cmd instanceof RevertToVMSnapshotCommand){
                 return execute((RevertToVMSnapshotCommand)cmd);
-            }else if (clz == SetPortForwardingRulesVpcCommand.class) {
-                answer = execute((SetPortForwardingRulesVpcCommand) cmd);
-            } else if (clz == Site2SiteVpnCfgCommand.class) {
-                answer = execute((Site2SiteVpnCfgCommand) cmd);
-            } else if (clz == CheckS2SVpnConnectionsCommand.class) {
-                answer = execute((CheckS2SVpnConnectionsCommand) cmd);
             } else if (clz == ResizeVolumeCommand.class) {
                 return execute((ResizeVolumeCommand) cmd);
             } else if (clz == UnregisterVMCommand.class) {
@@ -574,12 +604,8 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 return execute((ScaleVmCommand) cmd);
             } else if (clz == PvlanSetupCommand.class) {
                 return execute((PvlanSetupCommand) cmd);
-            } else if (clz == SetStaticRouteCommand.class) {
-                answer = execute((SetStaticRouteCommand) cmd);
             } else if (clz == UnregisterNicCommand.class) {
                 answer = execute((UnregisterNicCommand) cmd);
-            } else if (clz == SetMonitorServiceCommand.class) {
-                answer = execute((SetMonitorServiceCommand) cmd);
             } else {
                 answer = Answer.createUnsupportedCommandAnswer(cmd);
             }
