@@ -1107,3 +1107,7 @@ ALTER TABLE `cloud`.`disk_offering_details` CHANGE `display_detail` `display_det
 UPDATE `cloud`.`disk_offering_details` set `display_detail`=1 where id> 0;
 
 DROP TABLE IF EXISTS `cloud`.`ovs_tunnel_account`;
+
+INSERT IGNORE INTO `cloud`.`guest_os` (id, uuid, category_id, display_name) VALUES (168, UUID(), 6, 'Windows Server 2012 R2 (64-bit)');
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (hypervisor_type, guest_os_name, guest_os_id) VALUES  ("XenServer", 'Windows Server 2012 R2 (64-bit)', 168);
+INSERT IGNORE INTO `cloud`.`guest_os_hypervisor` (hypervisor_type, guest_os_name, guest_os_id) VALUES  ("VmWare", 'Windows Server 2012 R2 (64-bit)', 168);
