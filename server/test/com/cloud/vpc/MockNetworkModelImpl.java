@@ -886,12 +886,6 @@ public class MockNetworkModelImpl extends ManagerBase implements NetworkModel {
     }
 
     @Override
-    public boolean getExecuteInSeqNtwkElmtCmd() {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    @Override
     public boolean isNetworkReadyForGc(long networkId) {
         return true;
     }

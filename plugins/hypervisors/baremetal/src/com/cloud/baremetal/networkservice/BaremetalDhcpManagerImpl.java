@@ -149,7 +149,7 @@ public class BaremetalDhcpManagerImpl extends ManagerBase implements BaremetalDh
             dns = nic.getDns2();
         }
         DhcpEntryCommand dhcpCommand = new DhcpEntryCommand(nic.getMacAddress(), nic.getIp4Address(), profile.getVirtualMachine().getHostName(), null, dns,
-                nic.getGateway(), null, _ntwkModel.getExecuteInSeqNtwkElmtCmd());
+                nic.getGateway(), null);
         String errMsg = String.format("Set dhcp entry on external DHCP %1$s failed(ip=%2$s, mac=%3$s, vmname=%4$s)", h.getPrivateIpAddress(),
                 nic.getIp4Address(), nic.getMacAddress(), profile.getVirtualMachine().getHostName());
         // prepareBareMetalDhcpEntry(nic, dhcpCommand);

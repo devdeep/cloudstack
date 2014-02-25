@@ -190,7 +190,7 @@ public class BaremetalPxeManagerImpl extends ManagerBase implements BaremetalPxe
         String serviceOffering = _serviceOfferingDao.findByIdIncludingRemoved(vm.getId(), vm.getServiceOfferingId()).getDisplayText();
         String zoneName = _dcDao.findById(vm.getDataCenterId()).getName();
         NicVO nvo = _nicDao.findById(nic.getId());
-        VmDataCommand cmd = new VmDataCommand(nvo.getIp4Address(), vm.getInstanceName(), _ntwkModel.getExecuteInSeqNtwkElmtCmd());
+        VmDataCommand cmd = new VmDataCommand(nvo.getIp4Address(), vm.getInstanceName());
         cmd.addVmData("userdata", "user-data", vm.getUserData());
         cmd.addVmData("metadata", "service-offering", StringUtils.unicodeEscape(serviceOffering));
         cmd.addVmData("metadata", "availability-zone", StringUtils.unicodeEscape(zoneName));

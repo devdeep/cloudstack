@@ -210,8 +210,6 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel {
 
     private Map<String, String> _configs;
     
-    protected boolean _executeInSequenceNtwkElmtCmd;
-
     HashMap<Long, Long> _lastNetworkIdsToFree = new HashMap<Long, Long>();
 
     static HashMap<Service, List<Provider>> s_serviceToImplementedProvidersMap = new HashMap<Service, List<Provider>>();
@@ -1922,7 +1920,6 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel {
     public boolean configure(String name, Map<String, Object> params) throws ConfigurationException {
         _configs = _configDao.getConfiguration("Network", params);
         _allowSubdomainNetworkAccess = Boolean.valueOf(_configs.get(Config.SubDomainNetworkAccess.key()));
-        _executeInSequenceNtwkElmtCmd = Boolean.valueOf(_configs.get(Config.ExecuteInSequenceNetworkElementCommands.key()));
 
         NetworkOfferingVO publicNetworkOffering = new NetworkOfferingVO(NetworkOfferingVO.SystemPublicNetwork, TrafficType.Public, true);
         publicNetworkOffering = _networkOfferingDao.persistDefaultNetworkOffering(publicNetworkOffering);
@@ -2166,11 +2163,6 @@ public class NetworkModelImpl extends ManagerBase implements NetworkModel {
     @Override
     public Networks.IsolationType[] listNetworkIsolationMethods() {
         return Networks.IsolationType.values();
-    }
-    
-    @Override
-    public boolean getExecuteInSeqNtwkElmtCmd() {
-        return _executeInSequenceNtwkElmtCmd;
     }
 
     @Override
