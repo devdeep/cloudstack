@@ -497,12 +497,10 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
             mbean.addProp("Sequence", String.valueOf(cmdSequence));
             mbean.addProp("Name", cmd.getClass().getSimpleName());
 
+            Class<? extends Command> clz = cmd.getClass();
             if (cmd instanceof NetworkElementCommand) {
                 answer = executeNetworkElementCommand((NetworkElementCommand)cmd);
-            }
-
-            Class<? extends Command> clz = cmd.getClass();
-            if (clz == CreateCommand.class) {
+            } else if (clz == CreateCommand.class) {
                 answer = execute((CreateCommand) cmd);
             } else if (clz == ReadyCommand.class) {
                 answer = execute((ReadyCommand) cmd);
