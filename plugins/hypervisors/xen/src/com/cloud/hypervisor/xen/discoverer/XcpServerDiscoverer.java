@@ -695,36 +695,19 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             return null;
         }
         _resourceMgr.deleteRoutingHost(host, isForced, isForceDeleteStorage);
-        boolean success = false;
-        if (host.getClusterId() != null) {
-            List<HostVO> hosts = _resourceMgr.listAllUpAndEnabledOrMaintenaceHosts(com.cloud.host.Host.Type.Routing, host.getClusterId(), host.getPodId(), host.getDataCenterId());
-            for (HostVO thost : hosts) {
-                long thostId = thost.getId();
-                PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
-                Answer answer = _agentMgr.easySend(thostId, eject);
-                if (answer == null) {
-                    success = false;
-                    continue;
-                }
-                if (answer.getResult()) {
-                    s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " Succeed");
-                    success = true;
-                    break;
-                } else {
-                    s_logger.debug("Eject Host: " + host.getId() + " from " + thostId + " failed due to " + (answer != null ? answer.getDetails() : "no answer"));
-                    success = false;
-                    throw new CloudRuntimeException(answer.getDetails());
-                }
-            }
-            if (!success) {
-                String msg = "Unable to eject host " + host.getGuid() + " due to there is no host up in this cluster, please execute xe pool-eject host-uuid="
-                        + host.getGuid() + "in this host " + host.getPrivateIpAddress();
+        if ( !isForced ) {
+            PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
+            Answer answer = _agentMgr.easySend(host.getId(), eject);
+            if (answer != null && answer.getResult()) {
+                s_logger.debug("Eject Host: " + host.getGuid() + "(" + host.getPrivateIpAddress() + " ) Succeeded");
+            } else {
+                String msg = "Eject Host: " + host.getGuid() + "(" + host.getPrivateIpAddress() + " ) failed due to " + (answer != null ? answer.getDetails() : "no answer");
                 s_logger.warn(msg);
                 _alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, host.getDataCenterId(), host.getPodId(), "Unable to eject host " + host.getGuid(), msg);
                 throw new CloudRuntimeException(msg);
             }
         }
-        return new DeleteHostAnswer(success);
+        return new DeleteHostAnswer(true);
     }
 
     @Override

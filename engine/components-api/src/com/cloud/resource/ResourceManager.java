@@ -93,8 +93,6 @@ public interface ResourceManager extends ResourceService {
     public List<HostVO> findDirectlyConnectedHosts();
 
     public List<HostVO> listAllUpAndEnabledHosts(Host.Type type, Long clusterId, Long podId, long dcId);
-    
-    public List<HostVO> listAllUpAndEnabledOrMaintenaceHosts(Host.Type type, Long clusterId, Long podId, long dcId);
 
     public List<HostVO> listAllHostsInCluster(long clusterId);
 
