@@ -2540,6 +2540,9 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
     
     // this is XenServer specific
     public void syncVMMetaData(Map<String, String> vmMetadatum) {
+    	if ( vmMetadatum == null || vmMetadatum.isEmpty()) {
+    		return;
+    	}
         for (Map.Entry<String, String> entry : vmMetadatum.entrySet()) {
             String name = entry.getKey();
             String platform = entry.getValue();
