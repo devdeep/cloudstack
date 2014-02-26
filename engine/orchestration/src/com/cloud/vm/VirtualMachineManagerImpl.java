@@ -342,7 +342,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
     // TODO, remove it after transient period is over
     static final ConfigKey<Boolean> VmJobEnabled = new ConfigKey<Boolean>("Advanced",
-            Boolean.class, "vm.job.enabled", "false",
+            Boolean.class, "vm.job.enabled", "true",
             "True to enable new VM sync model. false to use the old way", false);
 
     static final ConfigKey<Long> VmJobCheckInterval = new ConfigKey<Long>("Advanced",
