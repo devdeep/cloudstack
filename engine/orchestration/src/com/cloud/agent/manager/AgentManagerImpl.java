@@ -38,12 +38,13 @@ import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.log4j.Logger;
+
 import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
-import org.apache.log4j.Logger;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.Listener;
@@ -97,9 +98,8 @@ import com.cloud.utils.concurrency.NamedThreadFactory;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.db.EntityManager;
 import com.cloud.utils.db.QueryBuilder;
-import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.db.SearchCriteria.Op;
-import com.cloud.utils.db.Transaction;
+import com.cloud.utils.db.TransactionLegacy;
 import com.cloud.utils.exception.CloudRuntimeException;
 import com.cloud.utils.exception.HypervisorVersionChangedException;
 import com.cloud.utils.fsm.NoTransitionException;
@@ -1072,6 +1072,7 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
             _request = request;
         }
 
+        @Override
         protected void runInContext() {
             _request.logD("Processing the first command ");
             StartupCommand[] startups = new StartupCommand[_cmds.length];
@@ -1462,8 +1463,16 @@ public class AgentManagerImpl extends ManagerBase implements AgentManager, Handl
                                     + resourceState + ", so no investigation");
                             disconnectWithoutInvestigation(agentId, Event.ShutdownRequested);
                         } else {
-                            status_logger.debug("Ping timeout for host " + agentId + ", do invstigation");
-                            disconnectWithInvestigation(agentId, Event.PingTimeout);
+                            HostVO host = _hostDao.findById(agentId);
+                            if (host != null && (host.getType() == Host.Type.ConsoleProxy || host.getType() == Host.Type.SecondaryStorageVM
+                                    || host.getType() == Host.Type.SecondaryStorageCmdExecutor)) {
+
+                                s_logger.warn("Disconnect agent for CPVM/SSVM due to physical connection close. host: " + host.getId());
+                                disconnectWithoutInvestigation(agentId, Event.ShutdownRequested);
+                            } else {
+                                status_logger.debug("Ping timeout for host " + agentId + ", do invstigation");
+                                disconnectWithInvestigation(agentId, Event.PingTimeout);
+                            }
                         }
                     }
                 }
