@@ -310,49 +310,6 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
             try {
                 s_logger.debug("Found a vm that is scheduled to be restarted but has no host id: " + vm);
                 _itMgr.advanceStop(vm.getUuid(), true);
-            } catch (ResourceUnavailableException e) {
-                assert false : "How do we hit this when force is true?";
-            throw new CloudRuntimeException("Caught exception even though it should be handled.", e);
-            } catch (OperationTimedoutException e) {
-                assert false : "How do we hit this when force is true?";
-            throw new CloudRuntimeException("Caught exception even though it should be handled.", e);
-            } catch (ConcurrentOperationException e) {
-                assert false : "How do we hit this when force is true?";
-            throw new CloudRuntimeException("Caught exception even though it should be handled.", e);
-            }
-        }
-
-        if(vm.getHypervisorType() == HypervisorType.VMware || vm.getHypervisorType() == HypervisorType.Hyperv) {
-            s_logger.info("Skip HA for VMware VM or Hyperv VM" + vm.getInstanceName());
-            return;
-        }
-
-        if (!investigate) {
-            if (s_logger.isDebugEnabled()) {
-                s_logger.debug("VM does not require investigation so I'm marking it as Stopped: " + vm.toString());
-            }
-
-            AlertManager.AlertType alertType = AlertManager.AlertType.ALERT_TYPE_USERVM;
-            if (VirtualMachine.Type.DomainRouter.equals(vm.getType())) {
-                alertType = AlertManager.AlertType.ALERT_TYPE_DOMAIN_ROUTER;
-            } else if (VirtualMachine.Type.ConsoleProxy.equals(vm.getType())) {
-                alertType = AlertManager.AlertType.ALERT_TYPE_CONSOLE_PROXY;
-            } else if (VirtualMachine.Type.SecondaryStorageVm.equals(vm.getType())) {
-                alertType = AlertManager.AlertType.ALERT_TYPE_SSVM;
-            }
-
-            if (!(_forceHA || vm.isHaEnabled())) {
-                String hostDesc = "id:" + vm.getHostId() + ", availability zone id:" + vm.getDataCenterId() + ", pod id:" + vm.getPodIdToDeployIn();
-                _alertMgr.sendAlert(alertType, vm.getDataCenterId(), vm.getPodIdToDeployIn(), "VM (name: " + vm.getHostName() + ", id: " + vm.getId() + ") stopped unexpectedly on host " + hostDesc,
-                        "Virtual Machine " + vm.getHostName() + " (id: " + vm.getId() + ") running on host [" + vm.getHostId() + "] stopped unexpectedly.");
-
-                if (s_logger.isDebugEnabled()) {
-                    s_logger.debug("VM is not HA enabled so we're done.");
-                }
-            }
-
-            try {
-                _itMgr.advanceStop(vm.getUuid(), true);
                 vm = _instanceDao.findByUuid(vm.getUuid());
             } catch (ResourceUnavailableException e) {
                 assert false : "How do we hit this when force is true?";
@@ -365,9 +322,29 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
             throw new CloudRuntimeException("Caught exception even though it should be handled.", e);
             }
         }
+        
+        if (!(_forceHA || vm.isHaEnabled())) {
 
-        if(vm.getHypervisorType() == HypervisorType.VMware) {
-            s_logger.info("Skip HA for VMware VM " + vm.getInstanceName());
+            AlertManager.AlertType alertType = AlertManager.AlertType.ALERT_TYPE_USERVM;
+            if (VirtualMachine.Type.DomainRouter.equals(vm.getType())) {
+                alertType = AlertManager.AlertType.ALERT_TYPE_DOMAIN_ROUTER;
+            } else if (VirtualMachine.Type.ConsoleProxy.equals(vm.getType())) {
+                alertType = AlertManager.AlertType.ALERT_TYPE_CONSOLE_PROXY;
+            } else if (VirtualMachine.Type.SecondaryStorageVm.equals(vm.getType())) {
+                alertType = AlertManager.AlertType.ALERT_TYPE_SSVM;
+            }
+            String hostDesc = "id:" + vm.getHostId() + ", availability zone id:" + vm.getDataCenterId() + ", pod id:" + vm.getPodIdToDeployIn();
+            _alertMgr.sendAlert(alertType, vm.getDataCenterId(), vm.getPodIdToDeployIn(), "VM (name: " + vm.getHostName() + ", id: " + vm.getId() + ") stopped unexpectedly on host " + hostDesc,
+                    "Virtual Machine " + vm.getHostName() + " (id: " + vm.getId() + ") running on host [" + vm.getHostId() + "] stopped unexpectedly.");
+
+            if (s_logger.isDebugEnabled()) {
+                s_logger.debug("VM is not HA enabled so we're done.");
+            }
+            return;
+        }
+        
+        if(vm.getHypervisorType() == HypervisorType.VMware || vm.getHypervisorType() == HypervisorType.Hyperv) {
+            s_logger.info("Skip HA for VMware VM or Hyperv VM" + vm.getInstanceName());
             return;
         }
 
