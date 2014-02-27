@@ -183,23 +183,15 @@ namespace HypervResource
                 }
                 else if (this.nfsDataStore != null)
                 {
-                    if (this.path != null && File.Exists(this.path))
+                    fileName = this.nfsDataStore.UncPath;
+                    if (this.path != null)
                     {
-                        fileName = this.path;
+                        fileName = Utils.NormalizePath(fileName + @"\" + this.path);
                     }
-                    else
-                    {
-                        fileName = this.nfsDataStore.UncPath;
-                        if (this.path != null)
-                        {
-                            fileName += @"\" + this.path;
-                        }
 
-                        fileName = Utils.NormalizePath(fileName);
-                        if (Directory.Exists(fileName))
-                        {
-                            fileName = Utils.NormalizePath(fileName + @"\" + this.uuid);
-                        }
+                    if (fileName != null && !File.Exists(fileName))
+                    {
+                        fileName = Utils.NormalizePath(fileName + @"\" + this.uuid);
                     }
                 }
                 else
@@ -344,8 +336,17 @@ namespace HypervResource
                 }
                 else if (this.nfsDataStoreTO != null)
                 {
-                    NFSTO store = this.nfsDataStoreTO;
-                    fileName = store.UncPath + @"\" + this.path + @"\" + this.uuid;
+                    fileName = this.nfsDataStoreTO.UncPath;
+                    if (this.path != null)
+                    {
+                        fileName = Utils.NormalizePath(fileName + @"\" + this.path);
+                    }
+
+                    if (fileName != null && !File.Exists(fileName))
+                    {
+                        fileName = Utils.NormalizePath(fileName + @"\" + this.uuid);
+                    }
+
                     if (!this.format.Equals("RAW"))
                     {
                         fileName = fileName + '.' + this.format.ToLowerInvariant();

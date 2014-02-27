@@ -50,6 +50,7 @@ namespace CloudStack.Plugin.AgentShell
             UriBuilder baseUri = new UriBuilder("https", AgentSettings.Default.private_ip_address, AgentSettings.Default.port);
 
             var config = new HttpSelfHostConfiguration(baseUri.Uri);
+            config.MaxConcurrentRequests = 100;
 
            // Allow ActionName to be applied to methods in ApiController, which allows it to serve multiple POST URLs
             config.Routes.MapHttpRoute(

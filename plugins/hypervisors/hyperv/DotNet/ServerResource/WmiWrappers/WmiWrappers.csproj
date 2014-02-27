@@ -147,6 +147,9 @@
     <Compile Include="ROOT.virtualization.v2.Msvm_VirtualEthernetSwitch.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="ROOT.virtualization.v2.Msvm_VirtualEthernetSwitchBandwidthSettingData.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="ROOT.virtualization.v2.Msvm_VirtualEthernetSwitchManagementService.cs">
       <SubType>Component</SubType>
     </Compile>
