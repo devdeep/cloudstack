@@ -117,9 +117,16 @@ public class Xenserver625Resource extends XenServerResourceNewBase {
                 throw new CloudRuntimeException("Unable to authenticate");
             }
 
-            String cmd = "rm -f /opt/xensource/sm/hostvmstats.py /opt/xensource/bin/copy_vhd_to_secondarystorage.sh " +
-            		"/opt/xensource/bin/copy_vhd_from_secondarystorage.sh /opt/xensource/bin/create_privatetemplate_from_snapshot.sh " +
-            		"opt/xensource/bin/vhd-util ";
+            String cmd = "rm -f /opt/xensource/sm/hostvmstats.py " +
+            		"/opt/xensource/bin/copy_vhd_to_secondarystorage.sh " +
+            		"/opt/xensource/bin/copy_vhd_from_secondarystorage.sh " +
+            		"/opt/xensource/bin/create_privatetemplate_from_snapshot.sh " +
+            		"/opt/xensource/bin/vhd-util " +
+            		"/opt/cloud/bin/copy_vhd_to_secondarystorage.sh " + 
+            		"/opt/cloud/bin/copy_vhd_from_secondarystorage.sh " +
+            		"/opt/cloud/bin/create_privatetemplate_from_snapshot.sh " +
+            		"/opt/cloud/bin/vhd-util";
+
             SSHCmdHelper.sshExecuteCmd(sshConnection, cmd);
         } catch (Exception e) {
             s_logger.debug("Catch exception " + e.toString(), e);
