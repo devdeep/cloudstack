@@ -27,6 +27,7 @@ import com.cloud.agent.api.to.NicTO;
 import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.offering.ServiceOffering;
 import com.cloud.server.ConfigurationServer;
+import com.cloud.service.dao.ServiceOfferingDao;
 import com.cloud.storage.dao.VMTemplateDetailsDao;
 import com.cloud.utils.Pair;
 import com.cloud.utils.component.AdapterBase;
@@ -49,6 +50,7 @@ public abstract class HypervisorGuruBase extends AdapterBase implements Hypervis
     @Inject UserVmDetailsDao _userVmDetailsDao;
     @Inject NicSecondaryIpDao _nicSecIpDao;
     @Inject ConfigurationServer _configServer;
+    @Inject ServiceOfferingDao  _offeringDao;
 
     protected HypervisorGuruBase() {
         super();
@@ -90,7 +92,7 @@ public abstract class HypervisorGuruBase extends AdapterBase implements Hypervis
 
     protected VirtualMachineTO toVirtualMachineTO(VirtualMachineProfile vmProfile) {
 
-        ServiceOffering offering = vmProfile.getServiceOffering();
+        ServiceOffering offering = _offeringDao.findById(vmProfile.getId(), vmProfile.getServiceOfferingId());
         VirtualMachine vm = vmProfile.getVirtualMachine();
         Long minMemory = (long) (offering.getRamSize() / vmProfile.getMemoryOvercommitRatio());
         int minspeed = (int) (offering.getSpeed() / vmProfile.getCpuOvercommitRatio());
