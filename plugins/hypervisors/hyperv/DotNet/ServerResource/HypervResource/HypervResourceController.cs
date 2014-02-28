@@ -2070,7 +2070,7 @@ namespace HypervResource
                         if (EnabledState.ToCloudStackPowerState(vm.EnabledState).Equals("PowerOff"))
                         {
                             string note = wmiCallsV2.GetVmNote((wmiCallsV2.GetVmSettings(vm)).Path);
-                            if (note != null && note.Equals("CloudStack"))
+                            if (note != null && note.Contains("CloudStack"))
                             {
                                 try
                                 {

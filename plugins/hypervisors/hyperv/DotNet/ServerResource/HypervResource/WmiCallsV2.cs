@@ -1497,7 +1497,7 @@ namespace HypervResource
 
             VirtualSystemSettingData vs_gs_data = VirtualSystemSettingData.CreateInstance();
             vs_gs_data.LateBoundObject["ElementName"] = name;
-            vs_gs_data.LateBoundObject["Notes"] = new string[] {"CloudStack"};
+            vs_gs_data.LateBoundObject["Notes"] = new string[] {"created by CloudStack, do not edit \n"};
 
             System.Management.ManagementPath jobPath;
             System.Management.ManagementPath defined_sys;
