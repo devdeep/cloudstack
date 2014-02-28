@@ -85,6 +85,10 @@
                                 context: args.context
                             });
                         }
+
+                        $(window).trigger('cloudStack.createForm.open', {
+                          $form: $form
+                        })
                     },
                     buttons: [{
                         text: createLabel ? createLabel : _l('label.ok'),

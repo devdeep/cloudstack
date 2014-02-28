@@ -15,8 +15,16 @@
       });
     };
 
+    var removeFormFields = function (ids) {
+      $(window).bind('cloudStack.createForm.open', function (e, data) {
+        data.$form.find('.form-item').filter(function() {
+          return $.inArray($(this).attr('rel'), ids) > -1;
+        }).remove();
+      });
+    };
+
     // Filter out unsupported network service providers
-    var unsupportedProviders = ['MidoNet', 'BigSwitch Vns'];
+    var unsupportedProviders = ['MidoNet', 'BigSwitch Vns', 'BigSwitchVns'];
     $('.list-view').live('cloudStack.listView.addRow', function(e, data) {
       var $tr = data.$tr;
 
@@ -30,10 +38,13 @@
     removeSelectOptions(['GRE', 'VNS', 'SSP'], $('.zone-wizard .setup-physical-network .input-area select'));
 
     // Remove unsupported hypervisors
-    removeSelectOptions(['LXC', 'OVM'], $('form select[name=hypervisor]'));
+    removeSelectOptions(['LXC', 'OVM', 'Ovm'], $('form select[name=hypervisor]'));
 
     // Remove unsupported secondary storage provider types
     removeSelectOptions(['Swift'], $('form select[name=provider]'));
+
+    removeFormFields(['diskBytesReadRate', 'diskBytesWriteRate', 'diskIopsReadRate', 'diskIopsWriteRate']);
+    removeFormFields(['isCustomizedIops', 'minIops', 'maxIops']);
   };
 
   cloudStack.modules.cloudPlatform = function(module) {
