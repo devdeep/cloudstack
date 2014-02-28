@@ -33,7 +33,6 @@ import com.xensource.xenapi.Types;
 import com.xensource.xenapi.VM;
 
 import org.apache.cloudstack.hypervisor.xenserver.XenServerResourceNewBase;
-import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 
 import com.cloud.agent.api.StartupRoutingCommand;
 import com.cloud.resource.ServerResource;
@@ -49,13 +48,6 @@ public class Xenserver625Resource extends XenServerResourceNewBase {
 
     public Xenserver625Resource() {
         super();
-    }
-
-    @Override
-    protected void fillHostInfo(Connection conn, StartupRoutingCommand cmd) {
-        super.fillHostInfo(conn, cmd);
-        Map<String, String> details = cmd.getHostDetails();
-        details.put(XenserverConfigs.XSHotFixVersion, XenserverConfigs.XSHotFixFox);
     }
 
     @Override

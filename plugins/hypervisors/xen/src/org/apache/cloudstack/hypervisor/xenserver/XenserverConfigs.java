@@ -19,7 +19,6 @@
 package org.apache.cloudstack.hypervisor.xenserver;
 
 public final class XenserverConfigs {
-    public static final String XSHotFixFox = "xsHotFixFox";
-    public static final String XSHotFixVersion = "xsHotFixVersion";
-
+    public static final String XSHasFixFox = "xs_has_fixfox";
+    public static final String FixFoxUuid = "996dd2e7-ad95-49cc-a0be-2c9adc4dfb0b";
 }

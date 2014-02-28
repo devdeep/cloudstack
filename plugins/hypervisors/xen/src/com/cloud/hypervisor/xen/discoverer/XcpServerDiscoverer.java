@@ -31,10 +31,8 @@ import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 import javax.persistence.EntityExistsException;
 
-import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import org.apache.log4j.Logger;
 import org.apache.xmlrpc.XmlRpcException;
-
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.Listener;
 import com.cloud.agent.api.AgentControlAnswer;
@@ -77,6 +75,7 @@ import com.cloud.hypervisor.xen.resource.XenServer610Resource;
 import com.cloud.hypervisor.xen.resource.XenServer620Resource;
 import com.cloud.hypervisor.xen.resource.XenServerConnectionPool;
 import com.cloud.hypervisor.xen.resource.Xenserver625Resource;
+import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import com.cloud.resource.Discoverer;
 import com.cloud.resource.DiscovererBase;
 import com.cloud.resource.ResourceManager;
@@ -115,7 +114,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
     protected String _guestNic;
     protected boolean _setupMultipath;
     protected String _instance;
-    private String xsHotFixFox = "996dd2e7-ad95-49cc-a0be-2c9adc4dfb0b";
 
     @Inject protected AlertManager _alertMgr;
     @Inject protected AgentManager _agentMgr;
@@ -159,7 +157,7 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
 
                 Set<HostPatch> patches = re.patches;
 
-                PoolPatch poolPatch = PoolPatch.getByUuid(conn, xsHotFixFox);
+                PoolPatch poolPatch = PoolPatch.getByUuid(conn, XenserverConfigs.FixFoxUuid);
 
                 for(HostPatch patch : patches) {
                     PoolPatch pp = patch.getPoolPatch(conn);
@@ -321,9 +319,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 details.put(HostInfo.HOST_OS_KERNEL_VERSION, hostKernelVer);
                 details.put(HostInfo.HYPERVISOR_VERSION, xenVersion);
 
-                if (xsHotFixFoxEnabled) {
-                    details.put(XenserverConfigs.XSHotFixVersion, XenserverConfigs.XSHotFixFox);
-                }
                 String privateNetworkLabel = _networkMgr.getDefaultManagementTrafficLabel(dcId, HypervisorType.XenServer);
                 String storageNetworkLabel = _networkMgr.getDefaultStorageTrafficLabel(dcId, HypervisorType.XenServer);
 
@@ -582,8 +577,8 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
         } else if (prodBrand.equals("XenServer") && prodVersion.equals("6.1.0")) {
             resource = XenServer610Resource.class.getName();
         } else if (prodBrand.equals("XenServer") && prodVersion.equals("6.2.0")) {
-            String hotfixversion = details.get(XenserverConfigs.XSHotFixVersion);
-            if (hotfixversion != null && hotfixversion.equalsIgnoreCase(XenserverConfigs.XSHotFixFox)) {
+            String xsHasFox = details.get(XenserverConfigs.XSHasFixFox).trim();
+            if (xsHasFox != null && xsHasFox.equalsIgnoreCase("true")) {
                 resource = Xenserver625Resource.class.getName();
             } else {
                 resource = XenServer620Resource.class.getName();
