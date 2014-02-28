@@ -77,7 +77,6 @@ import com.cloud.agent.api.PingRoutingWithOvsCommand;
 import com.cloud.agent.api.PingTestCommand;
 import com.cloud.agent.api.PlugNicAnswer;
 import com.cloud.agent.api.PlugNicCommand;
-import com.cloud.agent.api.PoolEjectCommand;
 import com.cloud.agent.api.PrepareForMigrationAnswer;
 import com.cloud.agent.api.PrepareForMigrationCommand;
 import com.cloud.agent.api.PvlanSetupCommand;
@@ -623,8 +622,6 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             return execute((CheckOnHostCommand) cmd);
         } else if (clazz == ModifySshKeysCommand.class) {
             return execute((ModifySshKeysCommand) cmd);
-        } else if (clazz == PoolEjectCommand.class) {
-            return execute((PoolEjectCommand) cmd);
         } else if (clazz == StartCommand.class) {
             return execute((StartCommand)cmd);
         } else if (clazz == CheckSshCommand.class) {
@@ -7471,21 +7468,6 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     @Override
     public void setAgentControl(IAgentControl agentControl) {
         _agentControl = agentControl;
-    }
-
-    protected Answer execute(PoolEjectCommand cmd) {
-        try {
-            Connection conn =  _connPool.connect(_host.uuid, UUID.randomUUID().toString(), _host.ip, _username, _password, _wait);
-            Set<Host> hosts = Host.getAll(conn);
-            if( hosts != null && hosts.size() == 1 ) {
-                return new Answer(cmd);
-            }
-            throw new CloudRuntimeException("Please eject host " + _host.ip + " from XS pool manually before delete it from CS UI");
-        } catch (CloudRuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new CloudRuntimeException("PoolEjectCommand " + _host.ip + " failed due to Exception " + e.toString());
-        }
     }
 
     private Answer execute(CleanupNetworkRulesCmd cmd) {

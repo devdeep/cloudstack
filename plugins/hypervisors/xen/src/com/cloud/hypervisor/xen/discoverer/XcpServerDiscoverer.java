@@ -39,7 +39,6 @@ import com.cloud.agent.api.AgentControlAnswer;
 import com.cloud.agent.api.AgentControlCommand;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
-import com.cloud.agent.api.PoolEjectCommand;
 import com.cloud.agent.api.SetupAnswer;
 import com.cloud.agent.api.SetupCommand;
 import com.cloud.agent.api.StartupCommand;
@@ -691,18 +690,6 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
             return null;
         }
         _resourceMgr.deleteRoutingHost(host, isForced, isForceDeleteStorage);
-        if ( !isForced ) {
-            PoolEjectCommand eject = new PoolEjectCommand(host.getGuid());
-            Answer answer = _agentMgr.easySend(host.getId(), eject);
-            if (answer != null && answer.getResult()) {
-                s_logger.debug("Eject Host: " + host.getGuid() + "(" + host.getPrivateIpAddress() + " ) Succeeded");
-            } else {
-                String msg = "Eject Host: " + host.getGuid() + "(" + host.getPrivateIpAddress() + " ) failed due to " + (answer != null ? answer.getDetails() : "no answer");
-                s_logger.warn(msg);
-                _alertMgr.sendAlert(AlertManager.AlertType.ALERT_TYPE_HOST, host.getDataCenterId(), host.getPodId(), "Unable to eject host " + host.getGuid(), msg);
-                throw new CloudRuntimeException(msg);
-            }
-        }
         return new DeleteHostAnswer(true);
     }
 
