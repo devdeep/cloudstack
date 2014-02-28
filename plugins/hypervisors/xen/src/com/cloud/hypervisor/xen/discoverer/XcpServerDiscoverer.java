@@ -99,6 +99,7 @@ import com.xensource.xenapi.Pool;
 import com.xensource.xenapi.PoolPatch;
 import com.xensource.xenapi.Session;
 import com.xensource.xenapi.Types.SessionAuthenticationFailed;
+import com.xensource.xenapi.Types.UuidInvalid;
 import com.xensource.xenapi.Types.XenAPIException;
 
 @Local(value=Discoverer.class)
@@ -154,23 +155,23 @@ public class XcpServerDiscoverer extends DiscovererBase implements Discoverer, L
                 if (!re.address.equalsIgnoreCase(hostIp)){
                     continue;
                 }
-
                 Set<HostPatch> patches = re.patches;
-
                 PoolPatch poolPatch = PoolPatch.getByUuid(conn, XenserverConfigs.FixFoxUuid);
-
                 for(HostPatch patch : patches) {
                     PoolPatch pp = patch.getPoolPatch(conn);
                     if (pp.equals(poolPatch) && patch.getApplied(conn)) {
+                        s_logger.debug("host " + hostIp + " does have Fox Hotfix");
                         return true;
                     }
                 }
             }
             return false;
+        } catch (UuidInvalid e) {
+            s_logger.debug("host " + hostIp + " doesn't have Fox Hotfix");
         } catch (Exception e) {
-            s_logger.debug("can;t get patches information", e);
-            return false;
+            s_logger.debug("can't get patches information, consider it doesn't have Fox Hotfix");
         }
+        return false;
     }
     @Override
     public Map<? extends ServerResource, Map<String, String>> find(long dcId, Long podId, Long clusterId, URI url, String username, String password, List<String> hostTags) throws DiscoveryException {
