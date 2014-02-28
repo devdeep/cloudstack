@@ -2054,18 +2054,34 @@ namespace HypervResource
                 logger.Info(CloudStackTypes.HostVmStateReportCommand + cmd.ToString());
 
                 string details = null;
-                Dictionary<string, string>[] hostVmStateReport = null;
+                List<Dictionary<string, string>> hostVmStateReport = new List<Dictionary<string, string>>();
 
                 try
                 {
                     var vmCollection = wmiCallsV2.GetComputerSystemCollection();
-                    hostVmStateReport = new Dictionary<string, string>[vmCollection.Count];
-                    int i = 0;
                     foreach (ComputerSystem vm in vmCollection)
                     {
-                        var dict = new Dictionary<string, string>();
-                        dict.Add(vm.ElementName, EnabledState.ToCloudStackPowerState(vm.EnabledState));
-                        hostVmStateReport[i++] = dict;
+                        if (EnabledState.ToCloudStackPowerState(vm.EnabledState).Equals("PowerOn"))
+                        {
+                            var dict = new Dictionary<string, string>();
+                            dict.Add(vm.ElementName, EnabledState.ToCloudStackPowerState(vm.EnabledState));
+                            hostVmStateReport.Add(dict);
+                        }
+                        if (EnabledState.ToCloudStackPowerState(vm.EnabledState).Equals("PowerOff"))
+                        {
+                            string note = wmiCallsV2.GetVmNote((wmiCallsV2.GetVmSettings(vm)).Path);
+                            if (note != null && note.Equals("CloudStack"))
+                            {
+                                try
+                                {
+                                    wmiCallsV2.DestroyVm(vm.ElementName);
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.Error("Failed to delete stopped VMs due to " + ex.Message);
+                                }
+                            }
+                        }
                     }
                 }
                 catch (Exception sysEx)

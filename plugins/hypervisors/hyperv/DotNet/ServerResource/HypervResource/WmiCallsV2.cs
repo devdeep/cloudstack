@@ -1497,6 +1497,7 @@ namespace HypervResource
 
             VirtualSystemSettingData vs_gs_data = VirtualSystemSettingData.CreateInstance();
             vs_gs_data.LateBoundObject["ElementName"] = name;
+            vs_gs_data.LateBoundObject["Notes"] = new string[] {"CloudStack"};
 
             System.Management.ManagementPath jobPath;
             System.Management.ManagementPath defined_sys;
@@ -2181,6 +2182,22 @@ namespace HypervResource
                 };
                 vmProcessorInfo.Add(summaryInfo.ElementName, vmInfo);
             }
+        }
+
+        public string GetVmNote(System.Management.ManagementPath sysPath)
+        {
+            uint[] requestedInfo = new uint[] {3};
+            System.Management.ManagementPath[] vmPaths = new System.Management.ManagementPath[] { sysPath };
+            var vmsvc = GetVirtualisationSystemManagementService();
+            System.Management.ManagementBaseObject[] sysSummary;
+            vmsvc.GetSummaryInformation(requestedInfo, vmPaths, out sysSummary);
+            foreach (var summary in sysSummary)
+            {
+                var summaryInfo = new SummaryInformation(summary);
+                return summaryInfo.Notes;
+            }
+
+            return null;
         }
     }
 

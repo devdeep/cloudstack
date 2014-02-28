@@ -67,5 +67,6 @@ namespace HypervResource
         void patchSystemVmIso(string vmName, string systemVmIso);
         void SetState(ComputerSystem vm, ushort requiredState);
         Dictionary<String, VmState> GetVmSync(String privateIpAddress);
+        string GetVmNote(System.Management.ManagementPath sysPath);
     }
 }
