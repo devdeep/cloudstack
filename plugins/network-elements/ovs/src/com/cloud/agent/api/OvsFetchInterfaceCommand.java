@@ -15,18 +15,24 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.cloud.network.ovs.dao;
+package com.cloud.agent.api;
 
-import java.util.List;
+import com.cloud.agent.api.Command;
 
-import com.cloud.utils.db.GenericDao;
+public class OvsFetchInterfaceCommand extends Command {
+	String label;
 
-public interface OvsTunnelNetworkDao extends GenericDao<OvsTunnelNetworkVO, Long> {
-    OvsTunnelNetworkVO getByFromToNetwork(long from, long to, long networkId);
+	@Override
+	public boolean executeInSequence() {
+		return true;
+	}
 
-    void removeByFromNetwork(long from, long networkId);
+	public OvsFetchInterfaceCommand(String label) {
+		this.label = label;
+	}
 
-    void removeByFromToNetwork(long from, long to, long networkId);
+	public String getLabel() {
+		return label;
+	}
 
-    List<OvsTunnelNetworkVO> listByToNetwork(long to, long networkId);
 }

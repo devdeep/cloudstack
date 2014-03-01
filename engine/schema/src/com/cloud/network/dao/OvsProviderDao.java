@@ -14,37 +14,17 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package com.cloud.network.ovs;
+package com.cloud.network.dao;
 
-import com.cloud.agent.api.Command;
+import java.util.List;
 
-public class OvsDestroyTunnelCommand extends Command {
-    
-	Long networkId;
-	Integer key;
-    String inPortName;
-    
-    public OvsDestroyTunnelCommand(Long networkId, Integer key, String inPortName) {
-        this.networkId = networkId;
-        this.inPortName = inPortName;
-        this.key = key;
-    }
-    
-    public Long getNetworkId() {
-        return networkId;
-    }
-    
-    public String getInPortName() {
-        return inPortName;
-    }
-    
-    public Integer getKey() {
-    	return key;
-    }
-    
-    @Override
-    public boolean executeInSequence() {
-        return true;
-    }
+import com.cloud.network.element.OvsProviderVO;
+import com.cloud.utils.db.GenericDao;
 
+public interface OvsProviderDao extends GenericDao<OvsProviderVO, Long> {
+	public OvsProviderVO findByNspId(long nspId);
+
+	public List<OvsProviderVO> listByEnabled(boolean enabled);
+
+	public OvsProviderVO findByIdAndEnabled(long id, boolean enabled);
 }

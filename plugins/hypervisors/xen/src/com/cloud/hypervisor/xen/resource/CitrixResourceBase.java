@@ -107,6 +107,7 @@ import com.cloud.agent.api.ModifyStoragePoolAnswer;
 import com.cloud.agent.api.ModifyStoragePoolCommand;
 import com.cloud.agent.api.NetworkRulesSystemVmCommand;
 import com.cloud.agent.api.NetworkRulesVmSecondaryIpCommand;
+import com.cloud.agent.api.OvsCreateGreTunnelCommand;
 import com.cloud.agent.api.PingCommand;
 import com.cloud.agent.api.PingRoutingCommand;
 import com.cloud.agent.api.PingRoutingWithNwGroupsCommand;
@@ -210,18 +211,17 @@ import com.cloud.network.Networks.BroadcastDomainType;
 import com.cloud.network.Networks.IsolationType;
 import com.cloud.network.Networks.TrafficType;
 import com.cloud.network.PhysicalNetworkSetupInfo;
-import com.cloud.network.ovs.OvsCreateGreTunnelAnswer;
-import com.cloud.network.ovs.OvsCreateGreTunnelCommand;
-import com.cloud.network.ovs.OvsCreateTunnelAnswer;
-import com.cloud.network.ovs.OvsCreateTunnelCommand;
-import com.cloud.network.ovs.OvsDeleteFlowCommand;
-import com.cloud.network.ovs.OvsDestroyBridgeCommand;
-import com.cloud.network.ovs.OvsDestroyTunnelCommand;
-import com.cloud.network.ovs.OvsFetchInterfaceAnswer;
-import com.cloud.network.ovs.OvsFetchInterfaceCommand;
-import com.cloud.network.ovs.OvsSetTagAndFlowAnswer;
-import com.cloud.network.ovs.OvsSetTagAndFlowCommand;
-import com.cloud.network.ovs.OvsSetupBridgeCommand;
+import com.cloud.agent.api.OvsCreateGreTunnelAnswer;
+import com.cloud.agent.api.OvsCreateTunnelCommand;
+import com.cloud.agent.api.OvsDestroyTunnelCommand;
+import com.cloud.agent.api.OvsSetupBridgeCommand;
+import com.cloud.agent.api.OvsDestroyBridgeCommand;
+import com.cloud.agent.api.OvsCreateTunnelAnswer;
+import com.cloud.agent.api.OvsDeleteFlowCommand;
+import com.cloud.agent.api.OvsSetTagAndFlowAnswer;
+import com.cloud.agent.api.OvsFetchInterfaceAnswer;
+import com.cloud.agent.api.OvsSetTagAndFlowCommand;
+import com.cloud.agent.api.OvsFetchInterfaceCommand;
 import com.cloud.network.rules.FirewallRule;
 import com.cloud.resource.ServerResource;
 import com.cloud.resource.hypervisor.HypervisorResource;
@@ -871,12 +871,17 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         }
         // At this stage we surely have a VIF
         try {
-            dom0vif.plug(conn);
+        	dom0vif.plug(conn);
         } catch (Exception e) {
-            // though wierd exception is thrown, VIF actually gets plugged-in to dom0, so just ignore exception
-            s_logger.info("Ignoring the benign error thrown while plugging VIF to dom0");
+        // 	though wierd exception is thrown, VIF actually gets plugged-in to dom0, so just ignore exception
+        	s_logger.info("Ignoring the benign error thrown while plugging VIF to dom0");
         }
-        dom0vif.unplug(conn);
+        try {
+        	dom0vif.unplug(conn);
+        } catch (Exception e) {
+        // 	though wierd exception is thrown, VIF actually gets plugged-in to dom0, so just ignore exception
+        	s_logger.info("Ignoring the benign error thrown while unplugging VIF to dom0");
+        }
         synchronized(_tmpDom0Vif) {
             _tmpDom0Vif.add(dom0vif);
         }
@@ -933,6 +938,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                 rec.otherConfig = otherConfig;
                 nw = Network.create(conn, rec);
                 // Plug dom0 vif only when creating network
+//                if (!is_xcp())
                 enableXenServerNetwork(conn, nw, nwName, "tunnel network for account " + key);
                 s_logger.debug("### Xen Server network for tunnels created:" + nwName);
             } else {
@@ -969,7 +975,8 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             }
             if (!configured) {
                 // Plug dom0 vif only if not done before for network and host
-                enableXenServerNetwork(conn, nw, nwName, "tunnel network for account " + key);
+//            	if (!is_xcp())
+            	enableXenServerNetwork(conn, nw, nwName, "tunnel network for account " + key);
                 String result = callHostPlugin(conn, "ovstunnel", "setup_ovs_bridge", "bridge", bridge,
                         "key", String.valueOf(key),
                         "xs_nw_uuid", nw.getUuid(conn),
@@ -5662,8 +5669,9 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
             configureTunnelNetwork(conn, cmd.getNetworkId(), cmd.getFrom(), cmd.getKey());
             bridge = nw.getBridge(conn);
-            String result = callHostPlugin(conn, "ovstunnel", "create_tunnel", "bridge", bridge, "remote_ip", cmd.getRemoteIp(),
-                    "key", cmd.getKey().toString(), "from", cmd.getFrom().toString(), "to", cmd.getTo().toString());
+            String result =
+                callHostPlugin(conn, "ovstunnel", "create_tunnel", "bridge", bridge, "remote_ip", cmd.getRemoteIp(), "key", cmd.getKey().toString(), "from",
+                    cmd.getFrom().toString(), "to", cmd.getTo().toString());
             String[] res = result.split(":");
             if (res.length == 2 && res[0].equalsIgnoreCase("SUCCESS")) {
                 return new OvsCreateTunnelAnswer(cmd, true, result, res[1], bridge);
@@ -5684,8 +5692,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         try {
             Network nw = setupvSwitchNetwork(conn);
             String bridge = nw.getBridge(conn);
-            String result = callHostPlugin(conn, "ovsgre", "ovs_delete_flow", "bridge", bridge,
-                    "vmName", cmd.getVmName());
+            String result = callHostPlugin(conn, "ovsgre", "ovs_delete_flow", "bridge", bridge, "vmName", cmd.getVmName());
 
             if (result.equalsIgnoreCase("SUCCESS")) {
                 return new Answer(cmd, true, "success to delete flows for " + cmd.getVmName());
@@ -5736,9 +5743,9 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
              * none guest network nic. don't worry, it will fail silently at host
              * plugin side
              */
-            String result = callHostPlugin(conn, "ovsgre", "ovs_set_tag_and_flow", "bridge", bridge,
-                    "vmName", cmd.getVmName(), "tag", cmd.getTag(),
-                    "vlans", cmd.getVlans(), "seqno", cmd.getSeqNo());
+            String result =
+                callHostPlugin(conn, "ovsgre", "ovs_set_tag_and_flow", "bridge", bridge, "vmName", cmd.getVmName(), "tag", cmd.getTag(), "vlans", cmd.getVlans(),
+                    "seqno", cmd.getSeqNo());
             s_logger.debug("set flow for " + cmd.getVmName() + " " + result);
 
             if (result.equalsIgnoreCase("SUCCESS")) {
@@ -5761,6 +5768,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     private OvsFetchInterfaceAnswer execute(OvsFetchInterfaceCommand cmd) {
 
         String label = cmd.getLabel();
+        //FIXME: this is a tricky to pass the network checking in XCP. I temporary get default label from Host.
+        if (is_xcp()) {
+        	label = getLabel();
+        }
         s_logger.debug("Will look for network with name-label:" + label + " on host " + _host.ip);
         Connection conn = getConnection();
         try {
@@ -5769,19 +5780,15 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             PIF pif = nw.getPif(conn);
             Record pifRec = pif.getRecord(conn);
             s_logger.debug("PIF object:" + pifRec.uuid + "(" + pifRec.device + ")");
-            return new OvsFetchInterfaceAnswer(cmd, true, "Interface " + pifRec.device + " retrieved successfully",
-                    pifRec.IP, pifRec.netmask, pifRec.MAC);
+            return new OvsFetchInterfaceAnswer(cmd, true, "Interface " + pifRec.device + " retrieved successfully", pifRec.IP, pifRec.netmask, pifRec.MAC);
         } catch (BadServerResponse e) {
-            s_logger.error("An error occurred while fetching the interface for " +
-                    label + " on host " + _host.ip , e);
+            s_logger.error("An error occurred while fetching the interface for " + label + " on host " + _host.ip, e);
             return new OvsFetchInterfaceAnswer(cmd, false, "EXCEPTION:" + e.getMessage());
         } catch (XenAPIException e) {
-            s_logger.error("An error occurred while fetching the interface for " +
-                    label + " on host " + _host.ip , e);
+            s_logger.error("An error occurred while fetching the interface for " + label + " on host " + _host.ip, e);
             return new OvsFetchInterfaceAnswer(cmd, false, "EXCEPTION:" + e.getMessage());
         } catch (XmlRpcException e) {
-            s_logger.error("An error occurred while fetching the interface for " +
-                    label + " on host " + _host.ip, e);
+            s_logger.error("An error occurred while fetching the interface for " + label + " on host " + _host.ip, e);
             return new OvsFetchInterfaceAnswer(cmd, false, "EXCEPTION:" + e.getMessage());
         }
     }
@@ -5796,25 +5803,21 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
             Network nw = setupvSwitchNetwork(conn);
             bridge = nw.getBridge(conn);
 
-            String result = callHostPlugin(conn, "ovsgre", "ovs_create_gre", "bridge", bridge,
-                    "remoteIP", cmd.getRemoteIp(), "greKey", cmd.getKey(), "from",
+            String result =
+                callHostPlugin(conn, "ovsgre", "ovs_create_gre", "bridge", bridge, "remoteIP", cmd.getRemoteIp(), "greKey", cmd.getKey(), "from",
                     Long.toString(cmd.getFrom()), "to", Long.toString(cmd.getTo()));
             String[] res = result.split(":");
             if (res.length != 2 || (res.length == 2 && res[1].equalsIgnoreCase("[]"))) {
-                return new OvsCreateGreTunnelAnswer(cmd, false, result,
-                        _host.ip, bridge);
+                return new OvsCreateGreTunnelAnswer(cmd, false, result, _host.ip, bridge);
             } else {
                 return new OvsCreateGreTunnelAnswer(cmd, true, result, _host.ip, bridge, Integer.parseInt(res[1]));
             }
         } catch (BadServerResponse e) {
-            s_logger.error("An error occurred while creating a GRE tunnel to " +
-                    cmd.getRemoteIp() + " on host " + _host.ip , e);
+            s_logger.error("An error occurred while creating a GRE tunnel to " + cmd.getRemoteIp() + " on host " + _host.ip, e);
         } catch (XenAPIException e) {
-            s_logger.error("An error occurred while creating a GRE tunnel to " +
-                    cmd.getRemoteIp() + " on host " + _host.ip , e);
+            s_logger.error("An error occurred while creating a GRE tunnel to " + cmd.getRemoteIp() + " on host " + _host.ip, e);
         } catch (XmlRpcException e) {
-            s_logger.error("An error occurred while creating a GRE tunnel to " +
-                    cmd.getRemoteIp() + " on host " + _host.ip , e);
+            s_logger.error("An error occurred while creating a GRE tunnel to " + cmd.getRemoteIp() + " on host " + _host.ip, e);
         }
 
         return new OvsCreateGreTunnelAnswer(cmd, false, "EXCEPTION", _host.ip, bridge);
@@ -8194,4 +8197,18 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     @Override
     public void setRunLevel(int level) {
     }
+
+	private boolean is_xcp() {
+		Connection conn = getConnection();
+		String result = callHostPlugin(conn, "ovstunnel", "is_xcp");
+		if (result.equals("XCP"))
+			return true;
+		return false;
+	}
+
+	private String getLabel() {
+		Connection conn = getConnection();
+		String result = callHostPlugin(conn, "ovstunnel", "getLabel");
+		return result;
+	}
 }

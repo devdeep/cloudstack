@@ -14,19 +14,13 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+package com.cloud.network;
 
-package com.cloud.network.ovs.dao;
+import org.apache.cloudstack.api.Identity;
+import org.apache.cloudstack.api.InternalIdentity;
 
-import java.util.List;
+public interface OvsProvider extends InternalIdentity, Identity {
+	public boolean isEnabled();
 
-import com.cloud.utils.db.GenericDao;
-
-public interface OvsTunnelNetworkDao extends GenericDao<OvsTunnelNetworkVO, Long> {
-    OvsTunnelNetworkVO getByFromToNetwork(long from, long to, long networkId);
-
-    void removeByFromNetwork(long from, long networkId);
-
-    void removeByFromToNetwork(long from, long to, long networkId);
-
-    List<OvsTunnelNetworkVO> listByToNetwork(long to, long networkId);
+	public long getNspId();
 }

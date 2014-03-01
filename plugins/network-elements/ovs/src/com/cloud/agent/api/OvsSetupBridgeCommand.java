@@ -15,24 +15,35 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.cloud.network.ovs;
+package com.cloud.agent.api;
 
 import com.cloud.agent.api.Command;
 
-public class OvsFetchInterfaceCommand extends Command {
-    String label;
+public class OvsSetupBridgeCommand extends Command {
+	Integer key;
+	Long hostId;
+	Long networkId;
 
-    @Override
-    public boolean executeInSequence() {
-        return true;
-    }
+	@Override
+	public boolean executeInSequence() {
+		return true;
+	}
 
-    public OvsFetchInterfaceCommand(String label) {
-        this.label = label;
-    }
+	public OvsSetupBridgeCommand(Integer key, Long hostId, Long networkId) {
+		this.key = key;
+		this.hostId = hostId;
+		this.networkId = networkId;
+	}
 
-    public String getLabel() {
-        return label;
-    }
+	public Integer getKey() {
+		return key;
+	}
 
+	public Long getHostId() {
+		return hostId;
+	}
+
+	public Long getNetworkId() {
+		return networkId;
+	}
 }

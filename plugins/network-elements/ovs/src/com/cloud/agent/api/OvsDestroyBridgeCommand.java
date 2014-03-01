@@ -15,36 +15,30 @@
 // specific language governing permissions and limitations
 // under the License.
 
-package com.cloud.network.ovs;
+package com.cloud.agent.api;
 
 import com.cloud.agent.api.Command;
 
-public class OvsSetupBridgeCommand extends Command {
-    Integer key;
-    Long hostId;
-    Long networkId;
+public class OvsDestroyBridgeCommand extends Command {
 
-    @Override
-    public boolean executeInSequence() {
-        return true;
-    }
+	Long networkId;
+	Integer key;
 
-    public OvsSetupBridgeCommand(Integer key, Long hostId, Long networkId) {
-        this.key = key;
-        this.hostId = hostId;
-        this.networkId = networkId;
-    }
+	public OvsDestroyBridgeCommand(Long networkId, Integer key) {
+		this.networkId = networkId;
+		this.key = key;
+	}
 
-    public Integer getKey() {
-        return key;
-    }
+	public Long getNetworkId() {
+		return networkId;
+	}
 
-    public Long getHostId() {
-        return hostId;
-    }
+	public Integer getKey() {
+		return key;
+	}
 
-    public Long getNetworkId() {
-    	return networkId;
-    }
-    
+	@Override
+	public boolean executeInSequence() {
+		return true;
+	}
 }

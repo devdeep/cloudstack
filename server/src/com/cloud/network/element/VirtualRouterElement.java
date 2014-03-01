@@ -30,7 +30,9 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 
 import org.apache.cloudstack.api.command.admin.router.ConfigureVirtualRouterElementCmd;
+import org.apache.cloudstack.api.command.admin.router.ConfigureOvsElementCmd;
 import org.apache.cloudstack.api.command.admin.router.CreateVirtualRouterElementCmd;
+import org.apache.cloudstack.api.command.admin.router.ListOvsElementsCmd;
 import org.apache.cloudstack.api.command.admin.router.ListVirtualRouterElementsCmd;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 
@@ -53,6 +55,7 @@ import com.cloud.network.NetworkMigrationResponder;
 import com.cloud.network.NetworkModel;
 import com.cloud.network.Networks;
 import com.cloud.network.Networks.TrafficType;
+import com.cloud.network.OvsProvider;
 import com.cloud.network.PhysicalNetworkServiceProvider;
 import com.cloud.network.PublicIpAddress;
 import com.cloud.network.RemoteAccessVpn;
@@ -62,6 +65,7 @@ import com.cloud.network.VpnUser;
 import com.cloud.network.dao.IPAddressDao;
 import com.cloud.network.dao.LoadBalancerDao;
 import com.cloud.network.dao.NetworkDao;
+import com.cloud.network.dao.OvsProviderDao;
 import com.cloud.network.dao.VirtualRouterProviderDao;
 import com.cloud.network.lb.LoadBalancingRule;
 import com.cloud.network.lb.LoadBalancingRule.LbStickinessPolicy;
@@ -141,6 +145,8 @@ public class VirtualRouterElement extends AdapterBase implements VirtualRouterEl
     @Inject
     VirtualRouterProviderDao _vrProviderDao;
     @Inject
+	OvsProviderDao _ovsProviderDao;
+	@Inject
     IPAddressDao _ipAddressDao;
 
     protected boolean canHandle(Network network, Service service) {
@@ -769,6 +775,21 @@ public class VirtualRouterElement extends AdapterBase implements VirtualRouterEl
         return element;
     }
 
+	@Override
+	public OvsProvider configure(ConfigureOvsElementCmd cmd) {
+		OvsProviderVO element = _ovsProviderDao.findById(cmd.getId());
+		if (element == null) {
+			s_logger.debug("Can't find Ovs element with network service provider id "
+					+ cmd.getId());
+			return null;
+		}
+
+		element.setEnabled(cmd.getEnabled());
+		_ovsProviderDao.persist(element);
+
+		return element;
+	}
+
     @Override
     public VirtualRouterProvider addElement(Long nspId, Type providerType) {
         if (!(providerType == Type.VirtualRouter || providerType == Type.VPCVirtualRouter)) {
@@ -1006,6 +1027,26 @@ public class VirtualRouterElement extends AdapterBase implements VirtualRouterEl
         
         return sc.list();
     }
+
+	@Override
+	public List<? extends OvsProvider> searchForOvsElement(ListOvsElementsCmd cmd) {
+		Long id = cmd.getId();
+		Long nspId = cmd.getNspId();
+		Boolean enabled = cmd.getEnabled();
+		SearchCriteriaService<OvsProviderVO, OvsProviderVO> sc = SearchCriteria2.create(OvsProviderVO.class);
+
+		if (id != null) {
+			sc.addAnd(sc.getEntity().getId(), Op.EQ, id);
+		}
+		if (nspId != null) {
+			sc.addAnd(sc.getEntity().getNspId(), Op.EQ, nspId);
+		}
+		if (enabled != null) {
+			sc.addAnd(sc.getEntity().isEnabled(), Op.EQ, enabled);
+		}
+
+		return sc.list();
+	}
 
     @Override
     public boolean verifyServicesCombination(Set<Service> services) {

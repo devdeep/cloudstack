@@ -14,41 +14,14 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package com.cloud.network.ovs;
+package com.cloud.agent.api;
 
-import com.cloud.agent.api.Command;
+import com.cloud.agent.api.StartupCommand;
+import com.cloud.host.Host;
 
-public class OvsCreateGreTunnelCommand extends Command {
-    String remoteIp;
-    String key;
-    long from;
-    long to;
+public class StartupOvsCommand extends StartupCommand {
 
-    @Override
-    public boolean executeInSequence() {
-        return true;
-    }
-
-    public OvsCreateGreTunnelCommand(String remoteIp, String key, long from, long to) {
-        this.remoteIp = remoteIp;
-        this.key = key;
-        this.from = from;
-        this.to = to;
-    }
-
-    public String getRemoteIp() {
-        return remoteIp;
-    }
-
-    public String getKey() {
-        return key;
-    }
-
-    public long getFrom() {
-        return from;
-    }
-
-    public long getTo() {
-        return to;
-    }
+	public StartupOvsCommand() {
+		super(Host.Type.L2Networking);
+	}
 }

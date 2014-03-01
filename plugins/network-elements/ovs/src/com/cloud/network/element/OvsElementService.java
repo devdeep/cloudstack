@@ -14,19 +14,10 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+package com.cloud.network.element;
 
-package com.cloud.network.ovs.dao;
+import com.cloud.utils.component.PluggableService;
 
-import java.util.List;
+public interface OvsElementService extends PluggableService {
 
-import com.cloud.utils.db.GenericDao;
-
-public interface OvsTunnelNetworkDao extends GenericDao<OvsTunnelNetworkVO, Long> {
-    OvsTunnelNetworkVO getByFromToNetwork(long from, long to, long networkId);
-
-    void removeByFromNetwork(long from, long networkId);
-
-    void removeByFromToNetwork(long from, long to, long networkId);
-
-    List<OvsTunnelNetworkVO> listByToNetwork(long to, long networkId);
 }

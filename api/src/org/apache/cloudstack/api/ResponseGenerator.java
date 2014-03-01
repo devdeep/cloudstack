@@ -16,7 +16,6 @@
 // under the License.
 package org.apache.cloudstack.api;
 
-
 import java.text.DecimalFormat;
 import java.util.EnumSet;
 import java.util.List;
@@ -106,6 +105,7 @@ import org.apache.cloudstack.api.response.UserResponse;
 import org.apache.cloudstack.api.response.UserVmResponse;
 import org.apache.cloudstack.api.response.VMSnapshotResponse;
 import org.apache.cloudstack.api.response.VirtualRouterProviderResponse;
+import org.apache.cloudstack.api.response.OvsProviderResponse;
 import org.apache.cloudstack.api.response.VlanIpRangeResponse;
 import org.apache.cloudstack.api.response.VolumeResponse;
 import org.apache.cloudstack.api.response.VpcOfferingResponse;
@@ -133,6 +133,7 @@ import com.cloud.hypervisor.HypervisorCapabilities;
 import com.cloud.network.GuestVlan;
 import com.cloud.network.IpAddress;
 import com.cloud.network.Network;
+import com.cloud.network.OvsProvider;
 import com.cloud.network.Network.Service;
 import com.cloud.network.Networks.IsolationType;
 import com.cloud.network.PhysicalNetwork;
@@ -354,6 +355,10 @@ public interface ResponseGenerator {
     TrafficTypeResponse createTrafficTypeResponse(PhysicalNetworkTrafficType result);
 
     VirtualRouterProviderResponse createVirtualRouterProviderResponse(VirtualRouterProvider result);
+
+	OvsProviderResponse createOvsProviderResponse(OvsProvider result);
+	
+    LDAPConfigResponse createLDAPConfigResponse(String hostname, Integer port, Boolean useSSL, String queryFilter, String baseSearch, String dn);
 
     StorageNetworkIpRangeResponse createStorageNetworkIpRangeResponse(StorageNetworkIpRange result);
 

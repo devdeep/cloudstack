@@ -14,27 +14,42 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
-package com.cloud.network.ovs;
+package com.cloud.agent.api;
 
-import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.Command;
 
-public class OvsSetTagAndFlowAnswer extends Answer {
-    Long vmId;
-    Long seqno;
+public class OvsCreateGreTunnelCommand extends Command {
+	String remoteIp;
+	String key;
+	long from;
+	long to;
 
-    public OvsSetTagAndFlowAnswer(Command cmd, boolean success, String details) {
-        super(cmd, success, details);
-        OvsSetTagAndFlowCommand c = (OvsSetTagAndFlowCommand) cmd;
-        this.vmId = c.getVmId();
-        this.seqno = Long.parseLong(c.getSeqNo());
-    }
+	@Override
+	public boolean executeInSequence() {
+		return true;
+	}
 
-    public Long getVmId() {
-        return vmId;
-    }
+	public OvsCreateGreTunnelCommand(String remoteIp, String key, long from,
+			long to) {
+		this.remoteIp = remoteIp;
+		this.key = key;
+		this.from = from;
+		this.to = to;
+	}
 
-    public Long getSeqNo() {
-        return seqno;
-    }
+	public String getRemoteIp() {
+		return remoteIp;
+	}
+
+	public String getKey() {
+		return key;
+	}
+
+	public long getFrom() {
+		return from;
+	}
+
+	public long getTo() {
+		return to;
+	}
 }

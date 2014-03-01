@@ -14,19 +14,27 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+package com.cloud.agent.api;
 
-package com.cloud.network.ovs.dao;
+import com.cloud.agent.api.Answer;
+import com.cloud.agent.api.Command;
 
-import java.util.List;
+public class OvsSetTagAndFlowAnswer extends Answer {
+	Long vmId;
+	Long seqno;
 
-import com.cloud.utils.db.GenericDao;
+	public OvsSetTagAndFlowAnswer(Command cmd, boolean success, String details) {
+		super(cmd, success, details);
+		OvsSetTagAndFlowCommand c = (OvsSetTagAndFlowCommand) cmd;
+		this.vmId = c.getVmId();
+		this.seqno = Long.parseLong(c.getSeqNo());
+	}
 
-public interface OvsTunnelNetworkDao extends GenericDao<OvsTunnelNetworkVO, Long> {
-    OvsTunnelNetworkVO getByFromToNetwork(long from, long to, long networkId);
+	public Long getVmId() {
+		return vmId;
+	}
 
-    void removeByFromNetwork(long from, long networkId);
-
-    void removeByFromToNetwork(long from, long to, long networkId);
-
-    List<OvsTunnelNetworkVO> listByToNetwork(long to, long networkId);
+	public Long getSeqNo() {
+		return seqno;
+	}
 }

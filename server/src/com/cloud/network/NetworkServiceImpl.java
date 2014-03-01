@@ -108,6 +108,7 @@ import com.cloud.network.dao.NetworkDomainDao;
 import com.cloud.network.dao.NetworkDomainVO;
 import com.cloud.network.dao.NetworkServiceMapDao;
 import com.cloud.network.dao.NetworkVO;
+import com.cloud.network.dao.OvsProviderDao;
 import com.cloud.network.dao.PhysicalNetworkDao;
 import com.cloud.network.dao.PhysicalNetworkServiceProviderDao;
 import com.cloud.network.dao.PhysicalNetworkServiceProviderVO;
@@ -115,6 +116,7 @@ import com.cloud.network.dao.PhysicalNetworkTrafficTypeDao;
 import com.cloud.network.dao.PhysicalNetworkTrafficTypeVO;
 import com.cloud.network.dao.PhysicalNetworkVO;
 import com.cloud.network.element.NetworkElement;
+import com.cloud.network.element.OvsProviderVO;
 import com.cloud.network.element.VirtualRouterElement;
 import com.cloud.network.element.VpcVirtualRouterElement;
 import com.cloud.network.guru.NetworkGuru;
@@ -301,6 +303,8 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
     IpAddressManager _ipAddrMgr;
     @Inject
     EntityManager _entityMgr;
+	@Inject
+	OvsProviderDao _ovsProviderDao;
 
     int _cidrLimit;
     boolean _allowSubdomainNetworkAccess;
@@ -2499,12 +2503,14 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
                     // add baremetal as the defualt network service provider
                     addDefaultBaremetalProvidersToPhysicalNetwork(pNetwork.getId());
 
+                    if (pNetwork.getIsolationMethods().contains("GRE"))
+                        addDefaultOvsToPhysicalNetwork(pNetwork.getId());
+
+                    // add security group provider to the physical network
+                    addDefaultSecurityGroupProviderToPhysicalNetwork(pNetwork.getId());
+
                     //Add Internal Load Balancer element as a default network service provider
                     addDefaultInternalLbProviderToPhysicalNetwork(pNetwork.getId());
-
-                    // Add OVS provider as default network service provider
-                    addDefaultOvsToPhysicalNetwork(pNetwork.getId());
-
 
                     return pNetwork;
                 }
@@ -3747,6 +3753,23 @@ public class NetworkServiceImpl extends ManagerBase implements NetworkService {
 
         return nsp;
     }
+
+	private PhysicalNetworkServiceProvider addDefaultOvsToPhysicalNetwork(long physicalNetworkId) {
+		PhysicalNetworkServiceProvider nsp = addProviderToPhysicalNetwork(physicalNetworkId, Network.Provider.Ovs.getName(), null, null);
+		NetworkElement networkElement = _networkModel.getElementImplementingProvider(Network.Provider.Ovs.getName());
+		if (networkElement == null) {
+            throw new CloudRuntimeException("Unable to find the Network Element implementing the Ovs Provider");
+        }
+		OvsProviderVO element = _ovsProviderDao.findByNspId(nsp.getId());
+		if (element != null) {
+			s_logger.debug("There is already a Ovs element with service provider id "
+					+ nsp.getId());
+			return nsp;
+		}
+		element = new OvsProviderVO(nsp.getId());
+		_ovsProviderDao.persist(element);
+		return nsp;
+	}
 
     protected PhysicalNetworkServiceProvider addDefaultVpcVirtualRouterToPhysicalNetwork(long physicalNetworkId) {
 
