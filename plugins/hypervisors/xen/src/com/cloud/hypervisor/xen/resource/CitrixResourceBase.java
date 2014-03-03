@@ -6133,7 +6133,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         _heartbeatInterval = NumbersUtil.parseInt((String) params.get("xen.heartbeat.interval"), 60);
 
         String value = (String) params.get("wait");
-        _wait = NumbersUtil.parseInt(value, 600);
+        _wait = NumbersUtil.parseInt(value, 120);
 
         value = (String) params.get("migratewait");
         _migratewait = NumbersUtil.parseInt(value, 3600);
