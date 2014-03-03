@@ -683,6 +683,11 @@ def cleanup_rules_for_dead_vms():
 
 def cleanup_rules():
     try:
+        try:
+            DeleteJunkRule = "iptables -D FORWARD -j REJECT --reject-with icmp-host-prohibitedq"
+            execute(DeleteJunkRule)
+        except:
+            pass       
         chainscmd = """iptables-save | grep -P '^:(?!.*-(def|eg))' | awk '{sub(/^:/, "", $1) ; print $1}'"""
         chains = execute(chainscmd).split('\n')
         cleanup = []
