@@ -1,3 +1,4 @@
+/*[fmt]1C20-1C0D-E*/
 body.login {
   background: url(../../images/overlay-pattern.png) repeat center, #351A61 url(gradient.jpg) no-repeat center;
   background-size: auto, cover;
@@ -64,10 +65,6 @@ div.login {
 
 #navigation ul li:hover, #navigation ul li.active {
   background: #684A99;
-}
-
-#navigation ul li span.icon {
-  display: none !important;
 }
 
 .login .fields input[type=submit] {
