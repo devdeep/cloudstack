@@ -1036,10 +1036,9 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                                 if (vm.getType() == VirtualMachine.Type.User) {
                                     String platform = answer.getPlatform();
                                     if (platform != null) {
-                                        UserVmVO userVm = _userVmDao.findById(vm.getId());
-                                        _userVmDao.loadDetails(userVm);
-                                        userVm.setDetail("platform",  platform);
-                                        _userVmDao.saveDetails(userVm);
+                                        Map<String,String> vmmetadata = new HashMap<String,String>();
+                                        vmmetadata.put(vm.getInstanceName(), platform);
+                                        syncVMMetaData(vmmetadata);
                                     }
                                 }
                             }
@@ -2556,15 +2555,28 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
             VMInstanceVO vm = _vmDao.findVMByInstanceName(name);
             if (vm != null && vm.getType() == VirtualMachine.Type.User) {
                 // track platform info
+            	boolean changed = false;
                 UserVmVO userVm = _userVmDao.findById(vm.getId());
                 _userVmDao.loadDetails(userVm);
-                userVm.setDetail("platform",  platform);
+                if ( userVm.details.containsKey("timeoffset")) {
+                    userVm.details.remove("timeoffset");
+                    changed = true;
+                }
+                if (!userVm.details.containsKey("platform") || !userVm.details.get("platform").equals(platform)) {
+                    userVm.setDetail("platform",  platform);
+                    changed = true;
+                }               
             	String pvdriver = "xenserver56";
             	if ( platform.contains("device_id")) {
             		pvdriver = "xenserver61";
             	}
-            	userVm.setDetail("hypervisortoolsversion", pvdriver);
-            	_userVmDao.saveDetails(userVm);
+                if (!userVm.details.containsKey("hypervisortoolsversion") || !userVm.details.get("hypervisortoolsversion").equals(pvdriver)) {
+                	userVm.setDetail("hypervisortoolsversion", pvdriver);
+                    changed = true;
+                } 
+                if ( changed ) {
+            	    _userVmDao.saveDetails(userVm);
+                }
             }
         }
     }
@@ -3046,18 +3058,21 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
     @Override
     public boolean processAnswers(long agentId, long seq, Answer[] answers) {
-        if (!VmJobEnabled.value()) {
-            for (final Answer answer : answers) {
-                if (answer instanceof ClusterSyncAnswer) {
+        for (final Answer answer : answers) {
+            if (answer instanceof ClusterSyncAnswer) {
+                if (!VmJobEnabled.value()) {
                     ClusterSyncAnswer hs = (ClusterSyncAnswer)answer;
                     if (!hs.isExceuted()) {
                         deltaSync(hs.getNewStates());
                         hs.setExecuted();
                     }
-                } else if ( answer instanceof ClusterVMMetaDataSyncAnswer) {
-                	ClusterVMMetaDataSyncAnswer cvms = (ClusterVMMetaDataSyncAnswer)answer;
-                	syncVMMetaData(cvms.getVMMetaDatum());
-                	cvms.setExecuted();
+                }
+                    
+            } else if ( answer instanceof ClusterVMMetaDataSyncAnswer) {
+                ClusterVMMetaDataSyncAnswer cvms = (ClusterVMMetaDataSyncAnswer)answer;
+                if (!cvms.isExceuted()) {
+                    syncVMMetaData(cvms.getVMMetaDatum());
+             	    cvms.setExecuted();
                 }
             }
         }
