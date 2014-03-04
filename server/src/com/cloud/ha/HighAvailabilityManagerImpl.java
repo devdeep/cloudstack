@@ -269,7 +269,7 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
             vm = _instanceDao.findByUuid(vm.getUuid());
             Long hostId = vm.getHostId();
             if ( hostId != null && !hostId.equals(host.getId()) ) {
-                s_logger.debug("VM " + vm.getHostName() + " is not on down host " + host.getId() + " it is on other host " 
+                s_logger.debug("VM " + vm.getHostName() + " is not on down host " + host.getId() + " it is on other host "
                 		+ hostId + " VM HA is done" );
                 continue;
             }
@@ -941,10 +941,19 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
     @Override
     public boolean postStateTransitionEvent(State oldState, VirtualMachine.Event event, State newState, VirtualMachine vo, boolean status, Object opaque) {
         if (oldState == State.Running && event == VirtualMachine.Event.FollowAgentPowerOffReport && newState == State.Stopped) {
-            VMInstanceVO vm = _instanceDao.findById(vo.getId());
+            final VMInstanceVO vm = _instanceDao.findById(vo.getId());
             if (vm.isHaEnabled()) {
                 s_logger.info("Detected out-of-band stop of a HA enabled VM " + vm.getInstanceName() + ", will schedule restart");
-                scheduleRestart(vm, true);
+                _executor.submit(new ManagedContextRunnable() {
+                    @Override
+                    protected void runInContext() {
+                        try {
+                            scheduleRestart(vm, true);
+                        } catch (Exception e) {
+                            s_logger.warn("Unexpected exception when scheduling a HA restart", e);
+                        }
+                    }
+                });
             }
         }
         return true;
