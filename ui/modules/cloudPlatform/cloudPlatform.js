@@ -32,7 +32,7 @@
         $tr.remove();
       }
     });
-    removeSelectOptions(unsupportedProviders, $('form select'));
+    removeSelectOptions(unsupportedProviders, $('.dynamic-input, form select'));
 
     // Zone wizard: Physical network: Remove unsupported isolation methods
     removeSelectOptions(['GRE', 'VNS', 'SSP'], $('.zone-wizard .setup-physical-network .input-area select'));
