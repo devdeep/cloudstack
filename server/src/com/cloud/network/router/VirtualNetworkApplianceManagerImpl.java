@@ -18,6 +18,7 @@
 package com.cloud.network.router;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,9 +42,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
-
 import org.apache.log4j.Logger;
-
 import org.apache.cloudstack.api.command.admin.router.RebootRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterCmd;
 import org.apache.cloudstack.api.command.admin.router.UpgradeRouterTemplateCmd;
@@ -56,7 +56,7 @@ import org.apache.cloudstack.framework.jobs.AsyncJobManager;
 import org.apache.cloudstack.framework.jobs.impl.AsyncJobVO;
 import org.apache.cloudstack.managed.context.ManagedContextRunnable;
 import org.apache.cloudstack.utils.identity.ManagementServerNode;
-
+import org.apache.log4j.Logger;
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.Listener;
 import com.cloud.agent.api.AgentControlAnswer;
@@ -1575,17 +1575,16 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
                 int count = routerCount - routers.size();
                 DeploymentPlan plan = planAndRouters.first();
                 for (int i = 0; i < count; i++) {
-                    LinkedHashMap<Network, NicProfile> networks = createRouterNetworks(owner, isRedundant, plan, guestNetwork,
-                        new Pair<Boolean, PublicIp>(publicNetwork, sourceNatIp));
+                    LinkedHashMap<Network, List<? extends NicProfile>> networks = createRouterNetworks(owner, isRedundant, plan, guestNetwork, new Pair<Boolean, PublicIp>(
+                            publicNetwork, sourceNatIp));
                     //don't start the router as we are holding the network lock that needs to be released at the end of router allocation
-                    DomainRouterVO router = deployRouter(owner, destination, plan, params, isRedundant, vrProvider, offeringId,
-                        null, networks, false, null);
+                    DomainRouterVO router = deployRouter(owner, destination, plan, params, isRedundant, vrProvider, offeringId, null, networks, false, null);
 
                     if (router != null) {
                         _routerDao.addRouterToGuestNetwork(router, guestNetwork);
                         routers.add(router);
-                    }
                 }
+            }
             }
         } finally {
             if (lock != null) {
@@ -1626,7 +1625,7 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
         VirtualRouterProvider vrProvider,
         long svcOffId,
         Long vpcId,
-        LinkedHashMap<Network, NicProfile> networks,
+        LinkedHashMap<Network, List<? extends NicProfile>> networks,
         boolean startRouter,
         List<HypervisorType> supportedHypervisors) throws ConcurrentOperationException,
         InsufficientAddressCapacityException,
@@ -1774,7 +1773,7 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
         return hypervisors;
     }
 
-    protected LinkedHashMap<Network, NicProfile> createRouterNetworks(Account owner,
+    protected LinkedHashMap<Network, List<? extends NicProfile>> createRouterNetworks(Account owner,
         boolean isRedundant,
             DeploymentPlan plan, Network guestNetwork, Pair<Boolean, PublicIp> publicNetwork) throws ConcurrentOperationException,
             InsufficientAddressCapacityException {
@@ -1786,8 +1785,7 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
         }
 
         //Form networks
-        LinkedHashMap<Network, NicProfile> networks = new LinkedHashMap<Network, NicProfile>(3);
-
+        LinkedHashMap<Network, List<? extends NicProfile>> networks = new LinkedHashMap<Network, List<? extends NicProfile>>(3);
         //1) Guest network
         boolean hasGuestNetwork = false;
         if (guestNetwork != null) {
@@ -1842,8 +1840,8 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
             } else {
                 gatewayNic.setDefaultNic(true);
             }
-
-            networks.put(guestNetwork, gatewayNic);
+            
+            networks.put(guestNetwork, new ArrayList<NicProfile>(Arrays.asList(gatewayNic)));
             hasGuestNetwork = true;
         }
 
@@ -1852,9 +1850,7 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
         List<? extends NetworkOffering> offerings = _networkModel.getSystemAccountNetworkOfferings(NetworkOffering.SystemControlNetwork);
         NetworkOffering controlOffering = offerings.get(0);
         Network controlConfig = _networkMgr.setupNetwork(_systemAcct, controlOffering, plan, null, null, false).get(0);
-        networks.put(controlConfig, null);
-
-
+        networks.put(controlConfig, new ArrayList<NicProfile>());
         //3) Public network
         if (setupPublicNetwork) {
             PublicIp sourceNatIp = publicNetwork.second();
@@ -1889,7 +1885,7 @@ public class VirtualNetworkApplianceManagerImpl extends ManagerBase implements V
                 s_logger.info("Use same MAC as previous RvR, the MAC is " + peerNic.getMacAddress());
                 defaultNic.setMacAddress(peerNic.getMacAddress());
             }
-            networks.put(publicNetworks.get(0), defaultNic);
+            networks.put(publicNetworks.get(0), new ArrayList<NicProfile>(Arrays.asList(defaultNic)));
         }
 
         return networks;
