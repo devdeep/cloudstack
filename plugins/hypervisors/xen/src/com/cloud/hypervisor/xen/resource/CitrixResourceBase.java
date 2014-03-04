@@ -229,6 +229,7 @@ import com.xensource.xenapi.Types;
 import com.xensource.xenapi.Types.BadAsyncResult;
 import com.xensource.xenapi.Types.BadServerResponse;
 import com.xensource.xenapi.Types.ConsoleProtocol;
+import com.xensource.xenapi.Types.HandleInvalid;
 import com.xensource.xenapi.Types.IpConfigurationMode;
 import com.xensource.xenapi.Types.OperationNotAllowed;
 import com.xensource.xenapi.Types.SrFull;
@@ -2918,9 +2919,15 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                 double diskReadKBs = 0;
                 double diskWriteKBs = 0;
                 for (VBD vbd : vm.getVBDs(conn)) {
-                    VBDMetrics record = vbd.getMetrics(conn);
-                    diskReadKBs += record.getIoReadKbs(conn);
-                    diskWriteKBs += record.getIoWriteKbs(conn);
+                    VBDMetrics vbdmetrics = vbd.getMetrics(conn);
+                    if (!isRefNull(vbdmetrics)) {
+                        try {
+                    	    diskReadKBs += vbdmetrics.getIoReadKbs(conn);
+                            diskWriteKBs += vbdmetrics.getIoWriteKbs(conn);
+                        }  catch (HandleInvalid e) {
+                            s_logger.debug("vbdmetrics doesn't exist ");
+                        }
+                    }
                 }
                 if (stats == null) {
                     stats = new VmStatsEntry();
