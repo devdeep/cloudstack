@@ -32,7 +32,6 @@ import org.apache.cloudstack.framework.config.ConfigKey;
 import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.storage.command.CopyCommand;
-import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
 import org.apache.cloudstack.storage.to.VolumeObjectTO;
 import org.apache.log4j.Logger;
 
@@ -337,11 +336,20 @@ public class VMwareGuru extends HypervisorGuruBase implements HypervisorGuru, Co
     public Pair<Boolean, Long> getCommandHostDelegation(long hostId, Command cmd) {
         boolean needDelegation = false;
 
-        if (cmd instanceof StorageSubSystemCommand) {
+        if (cmd instanceof CopyCommand) {
+            CopyCommand cc = (CopyCommand)cmd;
+            boolean inSeq = true;
             Boolean fullCloneEnabled = VmwareFullClone.value();
-            StorageSubSystemCommand c = (StorageSubSystemCommand)cmd;
-            c.setExecuteInSequence(fullCloneEnabled);
+            if (cc.getSrcTO().getObjectType() == DataObjectType.SNAPSHOT || cc.getDestTO().getObjectType() == DataObjectType.SNAPSHOT) {
+                inSeq = false;
+            } else if (cc.getDestTO().getDataStore().getRole() == DataStoreRole.Image || cc.getDestTO().getDataStore().getRole() == DataStoreRole.ImageCache) {
+                inSeq = false;
+            } else if (!fullCloneEnabled) {
+                inSeq = false;
+            }
+            cc.setExecuteInSequence(inSeq);
         }
+
         //NOTE: the hostid can be a hypervisor host, or a ssvm agent. For copycommand, if it's for volume upload, the hypervisor
         //type is empty, so we need to check the format of volume at first.
         if (cmd instanceof CopyCommand) {

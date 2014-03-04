@@ -31,7 +31,6 @@ import org.apache.cloudstack.framework.config.Configurable;
 import org.apache.cloudstack.hypervisor.xenserver.XenserverConfigs;
 import org.apache.cloudstack.storage.command.CopyCommand;
 import org.apache.cloudstack.storage.command.DettachCommand;
-import org.apache.cloudstack.storage.command.StorageSubSystemCommand;
 import org.apache.cloudstack.storage.datastore.db.PrimaryDataStoreDao;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
 
@@ -45,6 +44,7 @@ import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.host.HostVO;
 import com.cloud.host.dao.HostDao;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
+import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.GuestOSVO;
 import com.cloud.storage.Volume;
 import com.cloud.storage.VolumeVO;
@@ -153,9 +153,15 @@ public class XenServerGuru extends HypervisorGuruBase implements HypervisorGuru,
 
     @Override
     public Pair<Boolean, Long> getCommandHostDelegation(long hostId, Command cmd) {
-        if (cmd instanceof StorageSubSystemCommand) {
-            StorageSubSystemCommand c = (StorageSubSystemCommand)cmd;
-            c.setExecuteInSequence(true);
+        if (cmd instanceof CopyCommand) {
+            CopyCommand cc = (CopyCommand)cmd;
+            boolean inSeq = true;
+            if (cc.getSrcTO().getObjectType() == DataObjectType.SNAPSHOT || cc.getDestTO().getObjectType() == DataObjectType.SNAPSHOT) {
+                inSeq = false;
+            } else if (cc.getDestTO().getDataStore().getRole() == DataStoreRole.Image || cc.getDestTO().getDataStore().getRole() == DataStoreRole.ImageCache) {
+                inSeq = false;
+            }
+            cc.setExecuteInSequence(inSeq);
         }
         if (cmd instanceof CopyCommand) {
             CopyCommand cpyCommand = (CopyCommand)cmd;
