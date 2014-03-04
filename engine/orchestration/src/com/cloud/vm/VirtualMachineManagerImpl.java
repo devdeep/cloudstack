@@ -80,8 +80,8 @@ import com.cloud.agent.api.CheckVirtualMachineAnswer;
 import com.cloud.agent.api.CheckVirtualMachineCommand;
 import com.cloud.agent.api.ClusterSyncAnswer;
 import com.cloud.agent.api.ClusterSyncCommand;
-import com.cloud.agent.api.ClusterVMMetaDataSyncCommand;
 import com.cloud.agent.api.ClusterVMMetaDataSyncAnswer;
+import com.cloud.agent.api.ClusterVMMetaDataSyncCommand;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.MigrateAnswer;
 import com.cloud.agent.api.MigrateCommand;
@@ -2540,7 +2540,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
         return commands;
     }
-    
+
     // this is XenServer specific
     public void syncVMMetaData(Map<String, String> vmMetadatum) {
     	if ( vmMetadatum == null || vmMetadatum.isEmpty()) {
@@ -2565,7 +2565,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                 if (!userVm.details.containsKey("platform") || !userVm.details.get("platform").equals(platform)) {
                     userVm.setDetail("platform",  platform);
                     changed = true;
-                }               
+                }
             	String pvdriver = "xenserver56";
             	if ( platform.contains("device_id")) {
             		pvdriver = "xenserver61";
@@ -2573,7 +2573,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                 if (!userVm.details.containsKey("hypervisortoolsversion") || !userVm.details.get("hypervisortoolsversion").equals(pvdriver)) {
                 	userVm.setDetail("hypervisortoolsversion", pvdriver);
                     changed = true;
-                } 
+                }
                 if ( changed ) {
             	    _userVmDao.saveDetails(userVm);
                 }
@@ -2581,7 +2581,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         }
     }
 
-    
+
     public void deltaSync(Map<String, Pair<String, State>> newStates) {
         Map<Long, AgentVmInfo> states = convertToInfos(newStates);
 
@@ -3067,7 +3067,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                         hs.setExecuted();
                     }
                 }
-                    
+
             } else if ( answer instanceof ClusterVMMetaDataSyncAnswer) {
                 ClusterVMMetaDataSyncAnswer cvms = (ClusterVMMetaDataSyncAnswer)answer;
                 if (!cvms.isExceuted()) {
@@ -4232,6 +4232,10 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
         case Stopped:
         case Migrating:
             s_logger.info("VM " + vm.getInstanceName() + " is at " + vm.getState() + " and we received a power-off report while there is no pending jobs on it");
+            VirtualMachineGuru vmGuru = getVmGuru(vm);
+            VirtualMachineProfile profile = new VirtualMachineProfileImpl(vm);
+            sendStop(vmGuru, profile, true);
+
             try {
                 stateTransitTo(vm, VirtualMachine.Event.FollowAgentPowerOffReport, null);
             } catch (NoTransitionException e) {
@@ -4244,9 +4248,6 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
             s_logger.info("VM " + vm.getInstanceName() + " is sync-ed to at Stopped state according to power-off report from hypervisor");
 
-            VirtualMachineGuru vmGuru = getVmGuru(vm);
-            VirtualMachineProfile profile = new VirtualMachineProfileImpl(vm);
-            sendStop(vmGuru, profile, true);
             break;
 
         case Destroyed:
