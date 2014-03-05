@@ -1515,7 +1515,7 @@ namespace HypervResource
 
                                 if (srcVolumeObjectTO.nfsDataStore != null && srcVolumeObjectTO.primaryDataStore == null)
                                 {
-                                    destVolumeObjectTO.path = destVolumeObjectTO.uuid;
+                                    logger.Info("Copied volume from secondary data store to primary. Path: " + destVolumeObjectTO.path);
                                 }
                                 else if (srcVolumeObjectTO.primaryDataStore != null && srcVolumeObjectTO.nfsDataStore == null)
                                 {

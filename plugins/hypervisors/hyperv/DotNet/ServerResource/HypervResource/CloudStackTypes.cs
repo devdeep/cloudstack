@@ -177,7 +177,12 @@ namespace HypervResource
                     }
                     else
                     {
-                        fileName = @"\\" + store.uri.Host + store.uri.LocalPath + @"\" + this.uuid;
+                        String volume = this.path;
+                        if (String.IsNullOrEmpty(volume))
+                        {
+                            volume = this.uuid;
+                        }
+                        fileName = @"\\" + store.uri.Host + store.uri.LocalPath + @"\" + volume;
                         fileName = Utils.NormalizePath(fileName);
                     }
                 }
