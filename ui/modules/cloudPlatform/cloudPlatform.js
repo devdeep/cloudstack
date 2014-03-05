@@ -23,6 +23,13 @@
       });
     };
 
+    // Make XenServer default option in hypervisor fields
+    $(window).bind('cloudStack.createForm.makeFields', function (e, data) {
+      if (data.fields.hypervisor) {
+        data.fields.hypervisor.defaultValue = 'XenServer';
+      }
+    });
+
     // Filter out unsupported network service providers
     var unsupportedProviders = ['MidoNet', 'BigSwitch Vns', 'BigSwitchVns'];
     $('.list-view').live('cloudStack.listView.addRow', function(e, data) {
