@@ -27,6 +27,8 @@ import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import org.apache.log4j.Logger;
+
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreDriver;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreProvider;
 import org.apache.cloudstack.engine.subsystem.api.storage.DataStoreProviderManager;
@@ -38,7 +40,6 @@ import org.apache.cloudstack.framework.config.dao.ConfigurationDao;
 import org.apache.cloudstack.framework.messagebus.MessageBus;
 import org.apache.cloudstack.framework.messagebus.PublishScope;
 import org.apache.cloudstack.storage.datastore.db.StoragePoolVO;
-import org.apache.log4j.Logger;
 
 import com.cloud.agent.AgentManager;
 import com.cloud.agent.Listener;
@@ -191,6 +192,11 @@ public class CapacityManagerImpl extends ManagerBase implements CapacityManager,
         Long clusterId = null;
         if (hostId != null) {
             HostVO host = _hostDao.findById(hostId);
+            if (host == null) {
+                s_logger.warn("Host " + hostId + " no long exist anymore!");
+                return true;
+            }
+
             clusterId = host.getClusterId();
         }
         if (capacityCpu == null || capacityMemory == null || svo == null) {
@@ -206,7 +212,7 @@ public class CapacityManagerImpl extends ManagerBase implements CapacityManager,
                 public void doInTransactionWithoutResult(TransactionStatus status) {
                     CapacityVO capacityCpu = _capacityDao.lockRow(capacityCpuId, true);
                     CapacityVO capacityMemory = _capacityDao.lockRow(capacityMemoryId, true);
-        
+
                     long usedCpu = capacityCpu.getUsedCapacity();
                     long usedMem = capacityMemory.getUsedCapacity();
                     long reservedCpu = capacityCpu.getReservedCapacity();
@@ -755,7 +761,7 @@ public class CapacityManagerImpl extends ManagerBase implements CapacityManager,
                         }
                     }
                     _capacityDao.persist(capacity);
-        
+
                     capacity = new CapacityVO(
                             host.getId(),
                             host.getDataCenterId(),

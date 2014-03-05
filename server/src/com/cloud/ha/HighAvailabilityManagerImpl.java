@@ -425,9 +425,8 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
         }
 
         s_logger.info("HA on " + vm);
-        if (vm.getState() != work.getPreviousState() || vm.getUpdated() != work.getUpdateTime()) {
-            s_logger.info("VM " + vm + " has been changed.  Current State = " + vm.getState() + " Previous State = " + work.getPreviousState() + " last updated = " + vm.getUpdated()
-                    + " previous updated = " + work.getUpdateTime());
+        if (vm.getState() == State.Running) {
+            s_logger.info("VM " + vm + " is already at running state");
             return null;
         }
 
@@ -682,18 +681,21 @@ public class HighAvailabilityManagerImpl extends ManagerBase implements HighAvai
                 s_logger.info("Successfully stopped " + vm);
                 return null;
             } else if (work.getWorkType() == WorkType.CheckStop) {
-                if ((vm.getState() != work.getPreviousState()) || vm.getUpdated() != work.getUpdateTime() || vm.getHostId() == null || vm.getHostId().longValue() != work.getHostId()) {
-                    s_logger.info(vm + " is different now.  Scheduled Host: " + work.getHostId() + " Current Host: " + (vm.getHostId() != null ? vm.getHostId() : "none") + " State: " + vm.getState());
+
+                if (vm.getState() == State.Stopped) {
+                    s_logger.info("VM " + vm + " is already at Stopped state");
                     return null;
                 }
+
                 _itMgr.advanceStop(vm.getUuid(), false);
                 s_logger.info("Stop for " + vm + " was successful");
                 return null;
             } else if (work.getWorkType() == WorkType.ForceStop) {
-                if ((vm.getState() != work.getPreviousState()) || vm.getUpdated() != work.getUpdateTime() || vm.getHostId() == null || vm.getHostId().longValue() != work.getHostId()) {
-                    s_logger.info(vm + " is different now.  Scheduled Host: " + work.getHostId() + " Current Host: " + (vm.getHostId() != null ? vm.getHostId() : "none") + " State: " + vm.getState());
+                if (vm.getState() == State.Stopped) {
+                    s_logger.info("VM " + vm + " is already at Stopped state");
                     return null;
                 }
+
                 _itMgr.advanceStop(vm.getUuid(), true);
                 s_logger.info("Stop for " + vm + " was successful");
                 return null;
