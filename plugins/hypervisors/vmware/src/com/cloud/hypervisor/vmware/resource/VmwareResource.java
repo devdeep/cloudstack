@@ -358,8 +358,6 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     protected int _portsPerDvPortGroup;
     protected boolean _fullCloneFlag = false;
     protected boolean _instanceNameFlag = false;
-    protected boolean  _reserveCpu;
-    protected boolean  _reserveMem;
 
     protected boolean _recycleHungWorker = false;
     protected DiskControllerType _rootDiskController = DiskControllerType.ide;
@@ -3203,14 +3201,14 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
     }
 
     int getReservedMemoryMb(VirtualMachineTO vmSpec) {
-        if (vmSpec.getDetails().get(Config.VmwareReserveMem.key()).equalsIgnoreCase("true")) {
+        if (vmSpec.getDetails().get("vmware.reserve.mem").equalsIgnoreCase("true")) {
             return  (int) (vmSpec.getMinRam() / (1024 * 1024));
         }
         return 0;
     }
 
     int getReservedCpuMHZ(VirtualMachineTO vmSpec) {
-        if (vmSpec.getDetails().get(Config.VmwareReserveCpu.key()).equalsIgnoreCase("true")) {
+        if (vmSpec.getDetails().get("vmware.reserve.cpu").equalsIgnoreCase("true")) {
             return vmSpec.getMinSpeed();
         }
         return 0;
@@ -7226,17 +7224,9 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
                 _privateNetworkVSwitchName = (String) params.get("private.network.vswitch.name");
             }
 
-            String value = (String) params.get("vmware.reserve.cpu");
-            if(value != null && value.equalsIgnoreCase("true"))
-                _reserveCpu = true;
-
-            value = (String) params.get("vmware.recycle.hung.wokervm");
+            String value = (String) params.get("vmware.recycle.hung.wokervm");
             if(value != null && value.equalsIgnoreCase("true"))
                 _recycleHungWorker = true;
-
-            value = (String) params.get("vmware.reserve.mem");
-            if(value != null && value.equalsIgnoreCase("true"))
-                _reserveMem = true;
 
             value = (String)params.get("vmware.root.disk.controller");
             if(value != null && value.equalsIgnoreCase("scsi"))
