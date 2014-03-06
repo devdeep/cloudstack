@@ -1,59 +1,4 @@
 (function($, cloudStack) {
-  //
-  // Remove unsupported items from UI
-  //
-  var removeUnsupported = function() {
-    var removeSelectOptions = function (ids, $select) {
-      $select.live('mousedown', function () {
-        $(this).find('option').each(function () {
-          var val = $(this).val();
-
-          if ($.inArray(val, ids) > -1) {
-            $(this).remove();
-          }
-        });
-      });
-    };
-
-    var removeFormFields = function (ids) {
-      $(window).bind('cloudStack.createForm.open', function (e, data) {
-        data.$form.find('.form-item').filter(function() {
-          return $.inArray($(this).attr('rel'), ids) > -1;
-        }).remove();
-      });
-    };
-
-    // Make XenServer default option in hypervisor fields
-    $(window).bind('cloudStack.createForm.makeFields', function (e, data) {
-      if (data.fields.hypervisor) {
-        data.fields.hypervisor.defaultValue = 'XenServer';
-      }
-    });
-
-    // Filter out unsupported network service providers
-    var unsupportedProviders = ['MidoNet', 'BigSwitch Vns', 'BigSwitchVns'];
-    $('.list-view').live('cloudStack.listView.addRow', function(e, data) {
-      var $tr = data.$tr;
-
-      if ($.inArray($tr.find('td.name span').html(), unsupportedProviders) > -1) {
-        $tr.remove();
-      }
-    });
-    removeSelectOptions(unsupportedProviders, $('.dynamic-input, form select'));
-
-    // Zone wizard: Physical network: Remove unsupported isolation methods
-    removeSelectOptions(['GRE', 'VNS', 'SSP'], $('.zone-wizard .setup-physical-network .input-area select'));
-
-    // Remove unsupported hypervisors
-    removeSelectOptions(['LXC', 'OVM', 'Ovm'], $('form select[name=hypervisor]'));
-
-    // Remove unsupported secondary storage provider types
-    removeSelectOptions(['Swift'], $('form select[name=provider]'));
-
-    removeFormFields(['diskBytesReadRate', 'diskBytesWriteRate', 'diskIopsReadRate', 'diskIopsWriteRate']);
-    removeFormFields(['isCustomizedIops', 'minIops', 'maxIops']);
-  };
-
   cloudStack.modules.cloudPlatform = function(module) {
     // Only these languages will show in login lang selection
     var supportedLanguages = [
@@ -146,7 +91,12 @@
         window.g_lang='en';
       }
 
-      removeUnsupported();
+      // Make XenServer default option in hypervisor fields
+      $(window).bind('cloudStack.createForm.makeFields', function (e, data) {
+        if (data.fields.hypervisor) {
+          data.fields.hypervisor.defaultValue = 'XenServer';
+        }
+      });
     });
   };
 }(jQuery, cloudStack));
