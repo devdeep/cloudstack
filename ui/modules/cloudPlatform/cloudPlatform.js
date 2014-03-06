@@ -18,10 +18,18 @@
       var $eulaContainer = $('<div>').addClass('eula-container');
       var $agreeButton = $('<div>').addClass('button agree').html('Agree');
       var complete = args.complete;
+      var _dictionary = cloudStack.modules.cloudPlatform.dictionary[g_lang];
 
-        $eulaContainer.append(
-            $('<iframe>').attr({ src: 'modules/cloudPlatform/eula.' + g_lang + '.html' })
-        );
+      $eulaContainer.append(
+        $('<div>').addClass('eula-desc').html(_dictionary['message.eula.desc']),
+        $('<div>').addClass('download-eula').append(
+          $('<div>').addClass('icon'),
+          $('<a>').attr({
+            href: 'modules/cloudPlatform/eula/' + g_lang + '/EULA.pdf',
+            target: '_blank'
+          }).html(_dictionary['label.download.eula'])
+        )
+      );
 
       $agreeButton.click(complete);
       $eula.append($eulaContainer, $agreeButton);
@@ -68,8 +76,20 @@
         });
       });
 
-      // Add EULA to install process
-      cloudStack.preInstall = eula;
+      cloudStack.modules.cloudPlatform.dictionary = {
+        en: {
+          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing.',
+          'label.download.eula': 'Download Citrix License Agreement'
+        },
+        ja_JP: {
+          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing.',
+          'label.download.eula': 'Download Citrix License Agreement'
+        },
+        zh_CN: {
+          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing.',
+          'label.download.eula': 'Download Citrix License Agreement'
+        }
+      };
 
       // Replace 'CloudStack' -> 'CloudPlatform'
       cloudStack.localizationFn = function(str) {
@@ -90,6 +110,9 @@
         $.cookie('lang', 'en');
         window.g_lang='en';
       }
+
+      // Add EULA to install process
+      cloudStack.preInstall = eula;
 
       // Make XenServer default option in hypervisor fields
       $(window).bind('cloudStack.createForm.makeFields', function (e, data) {
