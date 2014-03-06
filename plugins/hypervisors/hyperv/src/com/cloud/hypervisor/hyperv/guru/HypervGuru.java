@@ -19,12 +19,18 @@ package com.cloud.hypervisor.hyperv.guru;
 import javax.ejb.Local;
 import javax.inject.Inject;
 
+import org.apache.cloudstack.storage.command.CopyCommand;
+
+import com.cloud.agent.api.Command;
+import com.cloud.agent.api.to.DataObjectType;
 import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.hypervisor.HypervisorGuru;
 import com.cloud.hypervisor.HypervisorGuruBase;
 import com.cloud.hypervisor.Hypervisor.HypervisorType;
+import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.GuestOSVO;
 import com.cloud.storage.dao.GuestOSDao;
+import com.cloud.utils.Pair;
 import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineProfile;
 
@@ -59,6 +65,19 @@ public class HypervGuru extends HypervisorGuruBase implements HypervisorGuru {
         to.setOs(guestOS.getDisplayName());
 
         return to;
+    }
+
+    @Override
+    public Pair<Boolean, Long> getCommandHostDelegation(long hostId, Command cmd) {
+        if (cmd instanceof CopyCommand) {
+            CopyCommand cc = (CopyCommand)cmd;
+            boolean inSeq = true;
+            if (cc.getDestTO().getDataStore().getRole() == DataStoreRole.Image || cc.getDestTO().getDataStore().getRole() == DataStoreRole.ImageCache) {
+                inSeq = false;
+            }
+            cc.setExecuteInSequence(inSeq);
+        }
+        return new Pair<Boolean, Long>(false, new Long(hostId));
     }
 
     @Override

@@ -1200,7 +1200,7 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
 
     protected boolean getExecuteInSequence(HypervisorType hypervisorType) {
         //FIXME: all this stuff should be redirected to hypervisor guru
-        if (HypervisorType.KVM == hypervisorType || HypervisorType.XenServer == hypervisorType) {
+        if (HypervisorType.KVM == hypervisorType || HypervisorType.XenServer == hypervisorType || HypervisorType.Hyperv == hypervisorType) {
             return true;
         } else if(HypervisorType.VMware == hypervisorType) {
             Boolean fullClone = HypervisorGuru.VmwareFullClone.value();
