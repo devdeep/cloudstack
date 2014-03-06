@@ -31,7 +31,7 @@ import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineProfile;
 
 public interface HypervisorGuru extends Adapter {
-    static final ConfigKey<Boolean> VmwareFullClone = new ConfigKey<Boolean>("Advanced", Boolean.class, "vmware.create.full.clone", "true",
+    static final ConfigKey<Boolean> VmwareFullClone = new ConfigKey<Boolean>("Advanced", Boolean.class, "vmware.create.full.clone", "false",
             "If set to true, creates guest VMs as full clones on ESX", false);
     HypervisorType getHypervisorType();
 
@@ -76,7 +76,7 @@ public interface HypervisorGuru extends Adapter {
     /**
      * Give the hypervisor guru the opportinity to decide if additional clean is
      * required for nics before expunging the VM
-     * 
+     *
      */
     List<Command> finalizeExpungeNics(VirtualMachine vm, List<NicProfile> nics);
 
