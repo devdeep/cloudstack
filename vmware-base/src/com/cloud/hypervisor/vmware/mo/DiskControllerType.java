@@ -33,7 +33,7 @@ public enum DiskControllerType {
                 || diskController.equalsIgnoreCase(ScsiDiskControllerType.LSILOGIC_SAS)) {
             return DiskControllerType.lsisas1068;
         } else if (diskController.equalsIgnoreCase("vim.vm.device.VirtualLsiLogicController") || diskController.equalsIgnoreCase("VirtualLsiLogicController")
-                || diskController.equalsIgnoreCase(ScsiDiskControllerType.LSILOGIC_PARALLEL)) {
+                || diskController.equalsIgnoreCase(ScsiDiskControllerType.LSILOGIC_PARALLEL) || diskController.equalsIgnoreCase("scsi")) {
             return DiskControllerType.lsilogic;
         } else if (diskController.equalsIgnoreCase("vim.vm.device.VirtualIDEController") || diskController.equalsIgnoreCase("VirtualIDEController")
                 || diskController.equalsIgnoreCase("ide")) {

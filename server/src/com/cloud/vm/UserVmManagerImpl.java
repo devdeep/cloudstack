@@ -3061,14 +3061,19 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                     if (guestOS.getDisplayName().toLowerCase().contains("apple mac os")){
                         vm.setDetail("smc.present", "TRUE");
                         vm.setDetail(VmDetailConstants.ROOK_DISK_CONTROLLER, "scsi");
+                        vm.setDetail(VmDetailConstants.DATA_DISK_CONTROLLER, "scsi");
                         vm.setDetail("firmware", "efi");
                         s_logger.info("guestOS is OSX : overwrite root disk controller to scsi, use smc and efi");
                     } else {
                         String controllerSetting = _configDao.getValue("vmware.root.disk.controller");
                         // This retrieved setting value would be validated down under at resource level.
                         vm.setDetail(VmDetailConstants.ROOK_DISK_CONTROLLER, controllerSetting);
+                        if (controllerSetting.equalsIgnoreCase("scsi")) {
+                            vm.setDetail(VmDetailConstants.DATA_DISK_CONTROLLER, "scsi");
+                        } else {
+                            vm.setDetail(VmDetailConstants.DATA_DISK_CONTROLLER, "osdefault");
+                        }
                     }
-                    vm.setDetail(VmDetailConstants.DATA_DISK_CONTROLLER, "osdefault");
                 }
 
                 Map<String, String> details = template.getDetails();

@@ -2733,15 +2733,21 @@ public class VmwareResource implements StoragePoolResource, ServerResource, Vmwa
         String dataDiskController = vmSpec.getDetails().get(VmDetailConstants.DATA_DISK_CONTROLLER);
         String rootDiskController = vmSpec.getDetails().get(VmDetailConstants.ROOK_DISK_CONTROLLER);
 
+        // If root disk controller is scsi, then data disk controller would also be scsi instead of using 'osdefault'
+        // This helps avoid mix of different scsi subtype controllers in instance.
+        if (DiskControllerType.lsilogic == DiskControllerType.getType(rootDiskController)) {
+            dataDiskController = DiskControllerType.scsi.toString();
+        }
+
         // Validate the controller types
         dataDiskController = DiskControllerType.getType(dataDiskController).toString();
         rootDiskController = DiskControllerType.getType(rootDiskController).toString();
 
         if (DiskControllerType.getType(rootDiskController) == DiskControllerType.none) {
-            throw new CloudRuntimeException("Invalid root disk controller detected : " + VmDetailConstants.ROOK_DISK_CONTROLLER);
+            throw new CloudRuntimeException("Invalid root disk controller detected : " + rootDiskController);
         }
         if (DiskControllerType.getType(dataDiskController) == DiskControllerType.none) {
-            throw new CloudRuntimeException("Invalid data disk controller detected : " + VmDetailConstants.DATA_DISK_CONTROLLER);
+            throw new CloudRuntimeException("Invalid data disk controller detected : " + dataDiskController);
         }
 
         Pair<String, String> controllerInfo = new Pair<String, String>(rootDiskController, dataDiskController);
