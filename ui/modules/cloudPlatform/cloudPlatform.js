@@ -5,8 +5,12 @@
       'en', 'en-US', 'ja', 'ja_JP', 'zh_CN'
     ];
 
-    var replace = function(str) {
-      var cpStr = 'CloudPlatform™';
+    var replace = function(str, useTm) {
+      var cpStr = 'CloudPlatform';
+
+      if (useTm) {
+        cpStr = 'CloudPlatform™';
+      }
 
       return str
         .replace(/\&\#8482/g, '') // Remove tm symbol
@@ -14,11 +18,11 @@
     };
 
     var eula = function(args) {
+      var _dictionary = cloudStack.modules.cloudPlatform.dictionary[g_lang];
       var $eula = $('<div>').addClass('eula');
       var $eulaContainer = $('<div>').addClass('eula-container');
-      var $agreeButton = $('<div>').addClass('button agree').html('Agree');
+      var $agreeButton = $('<div>').addClass('button agree').html(_dictionary['label.accept']);
       var complete = args.complete;
-      var _dictionary = cloudStack.modules.cloudPlatform.dictionary[g_lang];
 
       $eulaContainer.append(
         $('<div>').addClass('eula-desc').html(_dictionary['message.eula.desc']),
@@ -78,21 +82,28 @@
 
       cloudStack.modules.cloudPlatform.dictionary = {
         en: {
-          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing.',
+          'label.accept': 'Accept',
+          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing to the setup wizard.',
           'label.download.eula': 'Download Citrix License Agreement'
         },
         ja_JP: {
-          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing.',
+          'label.accept': 'Accept',
+          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing to the setup wizard.',
           'label.download.eula': 'Download Citrix License Agreement'
         },
         zh_CN: {
-          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing.',
+          'label.accept': 'Accept',
+          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing to the setup wizard.',
           'label.download.eula': 'Download Citrix License Agreement'
         }
       };
 
       // Replace 'CloudStack' -> 'CloudPlatform'
       cloudStack.localizationFn = function(str) {
+        if (str === 'label.app.name' || str === 'label.installWizard.title') {
+          return replace(dictionary[str], true);
+        }
+
         return dictionary[str] ? replace(dictionary[str]) : str;
       };
 
