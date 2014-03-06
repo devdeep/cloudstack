@@ -37,6 +37,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.PostConstruct;
 import javax.ejb.Local;
@@ -158,6 +160,8 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
     protected final int DEFAULT_DOMR_SSHPORT = 3922;
 
     private String _clusterGuid;
+
+    protected Map<String, Lock> _vrLockMap = new HashMap<String, Lock>();
 
     // Used by initialize to assert object configured before
     // initialize called.
@@ -431,6 +435,68 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
         return null;
     }
 
+    public Answer executeNetworkElementCommand(NetworkElementCommand cmd) {
+        String routerName = cmd.getAccessDetail(NetworkElementCommand.ROUTER_NAME);
+        Lock lock;
+        if (_vrLockMap.containsKey(routerName)) {
+            lock = _vrLockMap.get(routerName);
+        } else {
+            lock = new ReentrantLock();
+            _vrLockMap.put(routerName, lock);
+        }
+        lock.lock();
+        try {
+            Answer answer = null;
+            Class<? extends Command> clz = cmd.getClass();
+            if (clz == SetPortForwardingRulesCommand.class) {
+                answer = execute((SetPortForwardingRulesCommand) cmd);
+            } else if (clz == SetStaticNatRulesCommand.class) {
+                answer = execute((SetStaticNatRulesCommand) cmd);
+            } else if (clz == LoadBalancerConfigCommand.class) {
+                answer = execute((LoadBalancerConfigCommand) cmd);
+            } else if (clz == IpAssocCommand.class) {
+                answer = execute((IpAssocCommand) cmd);
+            } else if (clz == SavePasswordCommand.class) {
+                answer = execute((SavePasswordCommand) cmd);
+            } else if (clz == DhcpEntryCommand.class) {
+                answer = execute((DhcpEntryCommand) cmd);
+            } else if (clz == CreateIpAliasCommand.class) {
+                answer = execute((CreateIpAliasCommand) cmd);
+            } else if (clz == DnsMasqConfigCommand.class) {
+                answer = execute((DnsMasqConfigCommand) cmd);
+            } else if (clz == DeleteIpAliasCommand.class) {
+                answer = execute((DeleteIpAliasCommand) cmd);
+            } else if (clz == VmDataCommand.class) {
+                answer = execute((VmDataCommand) cmd);
+            } else if (clz == RemoteAccessVpnCfgCommand.class) {
+                answer = execute((RemoteAccessVpnCfgCommand) cmd);
+            } else if (clz == VpnUsersCfgCommand.class) {
+                answer = execute((VpnUsersCfgCommand) cmd);
+            } else if (clz == CheckRouterCommand.class) {
+                answer = execute((CheckRouterCommand) cmd);
+            } else if (clz == SetFirewallRulesCommand.class) {
+                answer = execute((SetFirewallRulesCommand)cmd);
+            } else if (clz == GetDomRVersionCmd.class) {
+                answer = execute((GetDomRVersionCmd)cmd);
+            } else if (clz == SetSourceNatCommand.class) {
+                answer = execute((SetSourceNatCommand) cmd);
+            } else if (clz == Site2SiteVpnCfgCommand.class) {
+                answer = execute((Site2SiteVpnCfgCommand) cmd);
+            } else if (clz == CheckS2SVpnConnectionsCommand.class) {
+                answer = execute((CheckS2SVpnConnectionsCommand) cmd);
+            } else if (clz == SetStaticRouteCommand.class) {
+                answer = execute((SetStaticRouteCommand) cmd);
+            } else if (clz == SetMonitorServiceCommand.class) {
+                answer = execute((SetMonitorServiceCommand) cmd);
+            } else {
+                answer = Answer.createUnsupportedCommandAnswer(cmd);
+            }
+            return answer;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     // TODO: Is it valid to return NULL, or should we throw on error?
     @Override
     public final Answer executeRequest(final Command cmd) {
@@ -452,52 +518,16 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
             return null;
         }
 
+        if (cmd instanceof NetworkElementCommand) {
+            return executeNetworkElementCommand((NetworkElementCommand)cmd);
+        }
+
         if (clazz == CheckSshCommand.class) {
             answer = execute((CheckSshCommand) cmd);
-        } else if (clazz == GetDomRVersionCmd.class) {
-            answer = execute((GetDomRVersionCmd)cmd);
         } else if (cmd instanceof NetworkUsageCommand) {
             answer = execute((NetworkUsageCommand) cmd);
-        } else if (clazz == IpAssocCommand.class) {
-            answer = execute((IpAssocCommand) cmd);
-        } else if (clazz == DnsMasqConfigCommand.class) {
-            return execute((DnsMasqConfigCommand) cmd);
-        } else if (clazz == CreateIpAliasCommand.class) {
-            return execute((CreateIpAliasCommand) cmd);
-        } else if (clazz == DhcpEntryCommand.class) {
-            answer = execute((DhcpEntryCommand) cmd);
-        } else if (clazz == VmDataCommand.class) {
-            answer = execute((VmDataCommand) cmd);
-        } else if (clazz == SavePasswordCommand.class) {
-            answer = execute((SavePasswordCommand) cmd);
-        } else if (clazz == SetFirewallRulesCommand.class) {
-            answer = execute((SetFirewallRulesCommand)cmd);
-        } else if (clazz == LoadBalancerConfigCommand.class) {
-            answer = execute((LoadBalancerConfigCommand) cmd);
-        } else if (clazz == DeleteIpAliasCommand.class) {
-            return execute((DeleteIpAliasCommand) cmd);
         } else if (clazz == PingTestCommand.class) {
             answer = execute((PingTestCommand) cmd);
-        } else if (clazz == SetStaticNatRulesCommand.class) {
-            answer = execute((SetStaticNatRulesCommand) cmd);
-        }  else if (clazz == CheckRouterCommand.class) {
-            answer = execute((CheckRouterCommand) cmd);
-        } else if (clazz == SetPortForwardingRulesCommand.class) {
-            answer = execute((SetPortForwardingRulesCommand) cmd);
-        } else if (clazz == SetSourceNatCommand.class) {
-            answer = execute((SetSourceNatCommand) cmd);
-        } else if (clazz == Site2SiteVpnCfgCommand.class) {
-            answer = execute((Site2SiteVpnCfgCommand) cmd);
-        } else if (clazz == CheckS2SVpnConnectionsCommand.class) {
-            answer = execute((CheckS2SVpnConnectionsCommand) cmd);
-        } else if (clazz == RemoteAccessVpnCfgCommand.class) {
-            answer = execute((RemoteAccessVpnCfgCommand) cmd);
-        } else if (clazz == VpnUsersCfgCommand.class) {
-            answer = execute((VpnUsersCfgCommand) cmd);
-        } else if (clazz == SetStaticRouteCommand.class) {
-            answer = execute((SetStaticRouteCommand) cmd);
-        } else if (clazz == SetMonitorServiceCommand.class) {
-            answer = execute((SetMonitorServiceCommand) cmd);
         } else {
             if (clazz == StartCommand.class) {
                 VirtualMachineTO vmSpec = ((StartCommand)cmd).getVirtualMachine();
