@@ -1673,10 +1673,14 @@ public class HypervDirectConnectResource extends ServerResourceBase implements S
 
         String controlIp = getRouterSshControlIp(cmd);
         String config = cmd.getConfiguration();
+        String disable =  cmd.getAccessDetail(NetworkElementCommand.ROUTER_MONITORING_DISABLE);
 
         String args = "";
 
         args += " -c " + config;
+        if (disable != null) {
+            args += " -d ";
+        }
 
         try {
             Pair<Boolean, String> result = SshHelper.sshExecute(controlIp, DEFAULT_DOMR_SSHPORT, "root", getSystemVMKeyFile(), null, "/opt/cloud/bin/monitor_service.sh " + args);
