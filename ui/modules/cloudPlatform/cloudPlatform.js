@@ -19,9 +19,15 @@
       var $agreeButton = $('<div>').addClass('button agree').html('Agree');
       var complete = args.complete;
 
-        $eulaContainer.append(
-            $('<iframe>').attr({ src: 'modules/cloudPlatform/eula.' + g_lang + '.html' })
-        );
+      $.ajax({
+        url: 'modules/cloudPlatform/eula/' + g_lang + '/EULA.txt',
+        dataType: 'html',
+        success: function(html) {
+          $eulaContainer.append(
+            $('<pre></pre>').html(html)
+          );
+        }
+      });
 
       $agreeButton.click(complete);
       $eula.append($eulaContainer, $agreeButton);
