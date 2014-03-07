@@ -73,6 +73,48 @@ public class Upgrade421to430 implements DbUpgrade {
         upgradeMemoryOfInternalLoadBalancervmOffering(conn);
         upgradeMemoryOfSsvmOffering(conn);
         updateSystemVmTemplates(conn);
+
+        upgradeFullCloneForFreshInstall(conn);
+    }
+
+    private void upgradeFullCloneForFreshInstall(Connection conn) {
+        int dcCount = 0;
+        PreparedStatement stmt = null;
+        ResultSet rs = null;
+        try {
+            stmt = conn.prepareStatement("select count(*) from data_center");
+            rs = stmt.executeQuery();
+            if (rs.next()) {
+                dcCount = rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            throw new CloudRuntimeException("Unable to upgrade vmware.create.full.clone flag", e);
+        } finally {
+            try {
+                if (rs != null)
+                    rs.close();
+
+                if (stmt != null)
+                    stmt.close();
+            } catch (SQLException e) {
+            }
+        }
+
+        if (dcCount == 0) {
+            // we think this is a fresh installation
+            try {
+                stmt = conn.prepareStatement("update configuration set value='false' where name='vmware.create.full.clone'");
+                stmt.execute();
+            } catch (SQLException e) {
+                throw new CloudRuntimeException("Unable to upgrade vmware.create.full.clone flag", e);
+            } finally {
+                try {
+                    if (stmt != null)
+                        stmt.close();
+                } catch (SQLException e) {
+                }
+            }
+        }
     }
 
     private void upgradeMemoryOfInternalLoadBalancervmOffering(Connection conn) {
