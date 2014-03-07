@@ -1937,7 +1937,8 @@ namespace HypervResource
                 strtRouteCmd.storageNetmask = subnet;
                 strtRouteCmd.storageMacAddress = storageNic.GetPhysicalAddress().ToString();
                 strtRouteCmd.gatewayIpAddress = storageNic.GetPhysicalAddress().ToString();
-                strtRouteCmd.hypervisorVersion = System.Environment.OSVersion.Version.ToString();
+                strtRouteCmd.hypervisorVersion = System.Environment.OSVersion.Version.Major.ToString() + "." +
+                        System.Environment.OSVersion.Version.Minor.ToString();
                 strtRouteCmd.caps = "hvm";
 
                 dynamic details = strtRouteCmd.hostDetails;
