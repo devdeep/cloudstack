@@ -389,9 +389,14 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
             }
 
             pool.refresh();
-            pool.setCapacity(storage.getInfo().capacity);
-            pool.setUsed(storage.getInfo().allocation);
-            pool.setAvailable(storage.getInfo().available);
+            try {
+                storage = conn.storagePoolLookupByUUIDString(uuid);
+                pool.setCapacity(storage.getInfo().capacity);
+                pool.setUsed(storage.getInfo().allocation);
+                pool.setAvailable(storage.getInfo().available);
+            } catch (Exception e) {
+                s_logger.debug("cant get storage info");
+            }
 
             return pool;
         } catch (LibvirtException e) {

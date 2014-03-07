@@ -38,21 +38,6 @@ import java.util.UUID;
 
 import javax.naming.ConfigurationException;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
-import org.libvirt.Connect;
-import org.libvirt.Domain;
-import org.libvirt.DomainInfo;
-import org.libvirt.DomainSnapshot;
-import org.libvirt.LibvirtException;
-
-import com.ceph.rados.IoCTX;
-import com.ceph.rados.Rados;
-import com.ceph.rados.RadosException;
-import com.ceph.rbd.Rbd;
-import com.ceph.rbd.RbdException;
-import com.ceph.rbd.RbdImage;
-
 import org.apache.cloudstack.storage.command.AttachAnswer;
 import org.apache.cloudstack.storage.command.AttachCommand;
 import org.apache.cloudstack.storage.command.CopyCmdAnswer;
@@ -72,7 +57,20 @@ import org.apache.cloudstack.utils.qemu.QemuImg;
 import org.apache.cloudstack.utils.qemu.QemuImg.PhysicalDiskFormat;
 import org.apache.cloudstack.utils.qemu.QemuImgException;
 import org.apache.cloudstack.utils.qemu.QemuImgFile;
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
+import org.libvirt.Connect;
+import org.libvirt.Domain;
+import org.libvirt.DomainInfo;
+import org.libvirt.DomainSnapshot;
+import org.libvirt.LibvirtException;
 
+import com.ceph.rados.IoCTX;
+import com.ceph.rados.Rados;
+import com.ceph.rados.RadosException;
+import com.ceph.rbd.Rbd;
+import com.ceph.rbd.RbdException;
+import com.ceph.rbd.RbdImage;
 import com.cloud.agent.api.Answer;
 import com.cloud.agent.api.storage.PrimaryStorageDownloadAnswer;
 import com.cloud.agent.api.to.DataObjectType;
@@ -556,10 +554,6 @@ public class KVMStorageProcessor implements StorageProcessor {
         } catch (Exception e) {
             s_logger.debug("Failed to create template from volume: " + e.toString());
             return new CopyCmdAnswer(e.toString());
-        } finally {
-            if (secondaryStorage != null) {
-                secondaryStorage.delete();
-            }
         }
     }
 
@@ -823,14 +817,6 @@ public class KVMStorageProcessor implements StorageProcessor {
                 }
             } catch (Exception ex) {
                 s_logger.debug("Failed to delete snapshots on primary", ex);
-            }
-
-            try {
-                if (secondaryStoragePool != null) {
-                    secondaryStoragePool.delete();
-                }
-            } catch (Exception ex) {
-                s_logger.debug("Failed to delete secondary storage", ex);
             }
         }
     }
