@@ -5,12 +5,8 @@
       'en', 'en-US', 'ja', 'ja_JP', 'zh_CN'
     ];
 
-    var replace = function(str, useTm) {
-      var cpStr = 'CloudPlatform';
-
-      if (useTm) {
-        cpStr = 'CloudPlatform™';
-      }
+    var replace = function(str) {
+      var cpStr = 'CloudPlatform™';
 
       return str
         .replace(/\&\#8482/g, '') // Remove tm symbol
@@ -18,22 +14,14 @@
     };
 
     var eula = function(args) {
-      var _dictionary = cloudStack.modules.cloudPlatform.dictionary[g_lang];
       var $eula = $('<div>').addClass('eula');
       var $eulaContainer = $('<div>').addClass('eula-container');
-      var $agreeButton = $('<div>').addClass('button agree').html(_dictionary['label.accept']);
+      var $agreeButton = $('<div>').addClass('button agree').html('Agree');
       var complete = args.complete;
 
-      $eulaContainer.append(
-        $('<div>').addClass('eula-desc').html(_dictionary['message.eula.desc']),
-        $('<div>').addClass('download-eula').append(
-          $('<div>').addClass('icon'),
-          $('<a>').attr({
-            href: 'modules/cloudPlatform/eula/' + g_lang + '/EULA.pdf',
-            target: '_blank'
-          }).html(_dictionary['label.download.eula'])
-        )
-      );
+        $eulaContainer.append(
+            $('<iframe>').attr({ src: 'modules/cloudPlatform/eula.' + g_lang + '.html' })
+        );
 
       $agreeButton.click(complete);
       $eula.append($eulaContainer, $agreeButton);
@@ -80,30 +68,11 @@
         });
       });
 
-      cloudStack.modules.cloudPlatform.dictionary = {
-        en: {
-          'label.accept': 'Accept',
-          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing to the setup wizard.',
-          'label.download.eula': 'Download Citrix License Agreement'
-        },
-        ja_JP: {
-          'label.accept': 'Accept',
-          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing to the setup wizard.',
-          'label.download.eula': 'Download Citrix License Agreement'
-        },
-        zh_CN: {
-          'label.accept': 'Accept',
-          'message.eula.desc': 'Please read and agree to the provided End User License Agreement before continuing to the setup wizard.',
-          'label.download.eula': 'Download Citrix License Agreement'
-        }
-      };
+      // Add EULA to install process
+      cloudStack.preInstall = eula;
 
       // Replace 'CloudStack' -> 'CloudPlatform'
       cloudStack.localizationFn = function(str) {
-        if (str === 'label.app.name' || str === 'label.installWizard.title') {
-          return replace(dictionary[str], true);
-        }
-
         return dictionary[str] ? replace(dictionary[str]) : str;
       };
 
@@ -121,9 +90,6 @@
         $.cookie('lang', 'en');
         window.g_lang='en';
       }
-
-      // Add EULA to install process
-      cloudStack.preInstall = eula;
 
       // Make XenServer default option in hypervisor fields
       $(window).bind('cloudStack.createForm.makeFields', function (e, data) {
