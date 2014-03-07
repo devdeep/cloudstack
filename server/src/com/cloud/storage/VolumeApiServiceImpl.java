@@ -1803,6 +1803,11 @@ public class VolumeApiServiceImpl extends ManagerBase implements VolumeApiServic
         if (volume == null) {
             throw new InvalidParameterValueException("Creating snapshot failed due to volume:" + volumeId + " doesn't exist");
         }
+
+        if (volume.getHypervisorType() == HypervisorType.Hyperv) {
+            throw new InvalidParameterValueException("Volume Snapshots are not supported on Hypervisor Type : Hyper-V");
+        }
+
         DataCenter zone = _dcDao.findById(volume.getDataCenterId());
         if (zone == null) {
             throw new InvalidParameterValueException("Can't find zone by id " + volume.getDataCenterId());
