@@ -173,7 +173,12 @@ namespace HypervResource
                     PrimaryDataStoreTO store = this.primaryDataStore;
                     if (store.isLocal)
                     {
-                        fileName = Path.Combine(store.Path, this.uuid);
+                        String volume = this.path;
+                        if (String.IsNullOrEmpty(volume))
+                        {
+                            volume = this.uuid;
+                        }
+                        fileName = Path.Combine(store.Path, volume);
                     }
                     else
                     {
