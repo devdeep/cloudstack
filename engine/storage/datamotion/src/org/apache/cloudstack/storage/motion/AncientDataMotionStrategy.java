@@ -59,6 +59,7 @@ import com.cloud.agent.api.to.NfsTO;
 import com.cloud.agent.api.to.VirtualMachineTO;
 import com.cloud.configuration.Config;
 import com.cloud.host.Host;
+import com.cloud.hypervisor.Hypervisor.HypervisorType;
 import com.cloud.server.ManagementService;
 import com.cloud.storage.DataStoreRole;
 import com.cloud.storage.StoragePool;
@@ -67,6 +68,7 @@ import com.cloud.storage.dao.VolumeDao;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.db.DB;
 import com.cloud.utils.exception.CloudRuntimeException;
+import com.cloud.vm.VirtualMachine;
 import com.cloud.vm.VirtualMachineManager;
 
 @Component
@@ -372,7 +374,7 @@ AncientDataMotionStrategy implements DataMotionStrategy {
         VolumeInfo volume = (VolumeInfo)srcData;
         StoragePool destPool = (StoragePool)dataStoreMgr.getDataStore(destData.getDataStore().getId(), DataStoreRole.Primary);
         MigrateVolumeCommand command = new MigrateVolumeCommand(volume.getId(), volume.getPath(), destPool, volume.getAttachedVmName());
-        EndPoint ep = selector.select(volume.getDataStore());
+        EndPoint ep = selector.select(srcData, StorageAction.MIGRATEVOLUME);
         Answer answer = null;
         if (ep == null) {
             String errMsg = "No remote endpoint to send command, check if host or ssvm is down?";
