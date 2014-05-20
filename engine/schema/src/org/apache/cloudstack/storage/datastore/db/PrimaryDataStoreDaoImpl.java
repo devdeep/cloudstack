@@ -361,6 +361,27 @@ public class PrimaryDataStoreDaoImpl extends GenericDaoBase<StoragePoolVO, Long>
     }
 
     @Override
+    public List<StoragePoolVO> findLocalStoragePoolsByHost(long hostId) {
+
+        SearchBuilder<StoragePoolVO> hostSearch = createSearchBuilder();
+        SearchBuilder<StoragePoolHostVO> hostPoolSearch = _hostDao.createSearchBuilder();
+
+        // Search for pools on the host
+        hostPoolSearch.and("hostId", hostPoolSearch.entity().getHostId(), Op.EQ);
+        // Set criteria for pools
+        hostSearch.and("scope", hostSearch.entity().getScope(), Op.EQ);
+        hostSearch.and("removed", hostSearch.entity().getRemoved(), Op.NULL);
+        hostSearch.and("status", hostSearch.entity().getStatus(), Op.EQ);
+        hostSearch.join("hostJoin", hostPoolSearch, hostSearch.entity().getId(), hostPoolSearch.entity().getPoolId(), JoinBuilder.JoinType.INNER);
+
+        SearchCriteria<StoragePoolVO> sc = hostSearch.create();
+        sc.setJoinParameters("hostJoin", "hostId", hostId );
+        sc.setParameters("scope", ScopeType.HOST.toString());
+        sc.setParameters("status", Status.Up.toString());
+        return listBy(sc);
+    }
+
+    @Override
     public List<StoragePoolVO> findZoneWideStoragePoolsByTags(long dcId, String[] tags) {
         List<StoragePoolVO> storagePools = null;
         if (tags == null || tags.length == 0) {

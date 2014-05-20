@@ -115,4 +115,6 @@ public interface PrimaryDataStoreDao extends GenericDao<StoragePoolVO, Long> {
     List<StoragePoolVO> findZoneWideStoragePoolsByHypervisor(long dataCenterId, HypervisorType hypervisorType);
 
     List<StoragePoolVO> findLocalStoragePoolsByHostAndTags(long hostId, String[] tags);
+
+    List<StoragePoolVO> findLocalStoragePoolsByHost(long hostId);
 }
