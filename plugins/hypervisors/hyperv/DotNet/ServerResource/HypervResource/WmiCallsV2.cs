@@ -1,4 +1,4 @@
-// Licensed to the Apache Software Foundation (ASF) under one
+﻿// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -29,6 +29,8 @@ using CloudStack.Plugin.WmiWrappers.ROOT.CIMV2;
 using System.IO;
 using System.Net.NetworkInformation;
 using System.Net;
+using CloudStack.Plugin.WmiWrappers.ROOT.MICROSOFT.WINDOWS.STORAGE;
+using CloudStack.Plugin.WmiWrappers.ROOT.MSCLUSTER;
 
 namespace HypervResource
 {
@@ -229,6 +231,7 @@ namespace HypervResource
             string errMsg = vmName;
             var diskDrives = vmInfo.disks;
             var bootArgs = vmInfo.bootArgs;
+            bool haEnabled = vmInfo.enableHA;
 
             // assert
             errMsg = vmName + ": missing disk information, array empty or missing, agent expects *at least* one disk for a VM";
@@ -481,6 +484,10 @@ namespace HypervResource
                     patchSystemVmIso(vmName, systemVmIso);
                 }
             }
+
+            // Adding vm to cluster, if cluster is present on node
+            logger.DebugFormat("Adding VM {0} to cluster", vmName);
+            AddVmToCluster(vmName, haEnabled);
 
             logger.DebugFormat("Starting VM {0}", vmName);
             SetState(newVm, RequiredState.Enabled);
@@ -1194,6 +1201,9 @@ namespace HypervResource
                 logger.DebugFormat("VM {0} already destroyed (or never existed)", displayName);
                 return;
             }
+
+            // remove vm from cluster
+            RemoveVmFromCluster(displayName);
 
             //try to shutdown vm first
             ShutdownVm(vm);
@@ -2735,6 +2745,319 @@ namespace HypervResource
             }
 
             return null;
+        }
+
+        private void AddVmToCluster(string vm, bool haEnabled)
+        {
+            if (IsClusterPresent())
+            {
+                GetCluster().AddVirtualMachine(vm);
+                if (haEnabled)
+                {
+                    SetFailoverParameters(vm, 6, 120);
+                }
+                else
+                {
+                    SetFailoverParameters(vm, 1, 0);
+                }
+            }
+        }
+
+        private void RemoveVmFromCluster(string vm)
+        {
+            if (IsClusterPresent())
+            {
+//                string vmName = "Virtual Machine " + vm;
+                GetResourceGroup(vm).DestroyGroup(0);
+            }
+        }
+
+        private bool IsClusterPresent()
+        {
+            SelectQuery selectQuery = new SelectQuery("MSCluster_Cluster");
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetClusterManagementScope(), selectQuery);
+
+            var objects = searcher.Get();
+
+            return (objects.Count != 1) ? false : true;
+        }
+
+        private void SetFailoverParameters(string vmResourceGroup, uint failoverPeriod, uint failoverThreshold)
+        {
+            var resGroup = GetResourceGroup(vmResourceGroup);
+
+            resGroup.AutoCommit = true;
+            resGroup.FailoverPeriod = failoverPeriod;
+            resGroup.FailoverThreshold = failoverThreshold;
+        }
+
+        private ResourceGroup GetResourceGroup(string groupName)
+        {
+            var wmiQuery = String.Format("Name=\"{0}\"", groupName);
+            var resGroups = ResourceGroup.GetInstances(wmiQuery);
+            return resGroups.OfType<ResourceGroup>().First();
+        }
+
+        private ISCSISession GetISCSISession(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber)
+        {
+            var wmiQuery = String.Format("TargetNodeAddress=\"{0}\"", NodeAddress);
+            var sessions = ISCSISession.GetInstances(wmiQuery);
+
+            foreach (ISCSISession session in sessions)
+            {
+                return session;
+            }
+            var initiatorPorts = InitiatorPort.GetInstances();
+            if(initiatorPorts.Count < 1) 
+            {
+                ThrowWMIException("Internal error, could not find the default initiator to connect to target iSCSI");
+            }
+
+            var initiatorPort = initiatorPorts.OfType<InitiatorPort>().First();
+            ManagementBaseObject iSCSISession = null;
+
+            try
+            {
+                var ret_val = ISCSITarget.Connect("None", null, null, initiatorPort.InstanceName, initiatorPort.NodeAddress, false, false, false, true, NodeAddress, false, TargetPortalAddress, TargetPortalPortNumber, out iSCSISession);
+
+                /* see what is the correct return code and corresponding throe exception and error
+                 * no proper documentation available, have to identify by debugging*/
+                if (ret_val == ReturnCode.Completed)
+                {
+                    return new ISCSISession(iSCSISession);
+                }
+            }
+            catch (Exception e)
+            {
+                ThrowWMIException("Not able to connect to target iSCSI " + e.Message);
+            }
+
+            ThrowWMIException("Not able to connect to target iSCSI");
+            return null;
+        }
+
+        private string AddDisksToClusterSharedVolumes(ISCSISession iSCSISession, uint lun)
+        {
+            // use iscsisession to get disk added with the given IQN. Do not other disks which are added by user from the system
+            var availableDisks = GetAvailableDiskToISCSISession(iSCSISession);
+
+            string resourceName = null;
+            string path = "";
+
+            foreach (AvailableDisk disk in availableDisks)
+            {
+                if (disk.ScsiLun == lun)
+                {
+                    try
+                    {
+                        disk.AddToCluster(disk.ResourceName, out path);
+                    }
+
+                    catch (Exception e) 
+                    {
+                        logger.Info("Generic error in adding disk to cluster, probably disk is added to cluster successfully " + e.Message);
+                    }
+                    resourceName = disk.ResourceName;
+                }
+            }
+
+            if (resourceName != null)
+            {
+                Cluster cluster = GetCluster();
+                try
+                {
+                    cluster.AddResourceToClusterSharedVolumes(resourceName);
+                }
+                catch (Exception e)
+                {
+                    logger.Info("Generic error in adding disk as CSV, probably disk is added as CSV successfully " + e.Message);
+                }
+            }
+            else
+            {
+                ThrowWMIException("iSCSI target doesn't contains the specified LUN");
+            }
+
+            GetResource(resourceName).BringOnline(10000);
+
+            return GetCsvToDisk(resourceName);
+        }
+
+        private Resource GetResource(string resourceName)
+        {
+            var wmiQuery = String.Format("Name=\"{0}\"", resourceName);
+            var resources = Resource.GetInstances(wmiQuery);
+
+            if (resources.Count != 1)
+            {
+                ThrowWMIException(String.Format("There are 0 or more than 1 resource with name \"{0}\"", resourceName));
+            }
+
+            return resources.OfType<Resource>().First();
+
+        }
+
+        public string AddScsiLun(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun)
+        {
+            if (IsClusterPresent())
+            {
+                ISCSISession iSCSISession = GetISCSISession(NodeAddress, TargetPortalAddress, TargetPortalPortNumber);
+                //TODO how to get stats of disk
+                // get stats from msft_volume class
+                return AddDisksToClusterSharedVolumes(iSCSISession, lun);
+            }
+            ThrowWMIException("We cannot add iSCSI LUN to node which is not part of a Cluster");
+            return null;
+        }
+
+        public void RemoveScsiLun(string volumePath)
+        {
+            // we are not putting disk in maintainence on server, this may conflict with cloudstack meaning f maintainence
+            //CSVTurnOffMaintainence(volumePath);
+            Resource diskResource = GetResourceToCsv(volumePath);
+            diskResource.TakeOffline(0, null, 10000);
+            GetCluster().RemoveResourceFromClusterSharedVolumes(diskResource.Name);
+            diskResource.Delete();
+        }
+
+        public void CSVTurnOnMaintainence(string volumePath)
+        {
+            var wmiQuery = String.Format("Name=\"{0}\"", volumePath);
+            var csvs = ClusterSharedVolume.GetInstances(wmiQuery);
+            csvs.OfType<ClusterSharedVolume>().First().TurnOnMaintenance();
+        }
+
+        public void CSVTurnOffMaintainence(string volumePath)
+        {
+            var wmiQuery = String.Format("Name=\"{0}\"", volumePath);
+            var csvs = ClusterSharedVolume.GetInstances(wmiQuery);
+            csvs.OfType<ClusterSharedVolume>().First().TurnOffMaintenance();
+        }
+
+        private Cluster GetCluster()
+        {
+            var clusters = Cluster.GetInstances();
+
+            if (clusters.Count != 1)
+            {
+                ThrowWMIException("There are 0 or more than 1 clusters on this host. How can this be even possible?");
+            }
+
+            return clusters.OfType<Cluster>().First();
+        }
+
+        private string GetCsvToDisk(string resourceName)
+        {
+            SelectQuery selectQuery = new SelectQuery("MSCluster_ClusterSharedVolumeToResource", String.Format("PartComponent=\"MSCluster_Resource.Name=\\\"{0}\\\"\"", resourceName));
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetClusterManagementScope(), selectQuery);
+
+            var objects = searcher.Get();
+            if (objects.Count != 1)
+            {
+                ThrowWMIException("Specified disk resource either does not exist or is not unique");
+            }
+
+            foreach (var csvToRes in objects)
+            {
+                string groupComponent = (string)csvToRes["GroupComponent"];
+                string[] groupTokens = groupComponent.Split('"');
+                return groupTokens[1];
+            }
+
+            ThrowWMIException("Specified disk resource does not exist");
+            return null;
+        }
+
+        private Resource GetResourceToCsv(string volumePath)
+        {
+            volumePath = volumePath.Replace("\\", "\\\\");
+            SelectQuery selectQuery = new SelectQuery("MSCluster_ClusterSharedVolumeToResource", 
+                String.Format("GroupComponent=\"MSCluster_ClusterSharedVolume.Name=\\\"{0}\\\"\"", volumePath));
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetClusterManagementScope(), selectQuery);
+
+            var objects = searcher.Get();
+            if (objects.Count != 1)
+            {
+                ThrowWMIException("Specified CSV either does not exist or is not unique");
+            }
+
+            string resourceName = null;
+
+            foreach (var ResToCsv in objects)
+            {
+                string groupComponent = (string)ResToCsv["PartComponent"];
+                string[] groupTokens = groupComponent.Split('"');
+                resourceName = groupTokens[1];
+            }
+
+            var wmiQuery = String.Format("Name=\"{0}\"", resourceName);
+            var disks = Resource.GetInstances(wmiQuery);
+
+            return disks.OfType<Resource>().First();
+        }
+
+        private List<AvailableDisk> GetAvailableDiskToISCSISession(ISCSISession session)
+        {
+            var disks = GetDiskISCSISession(session);
+
+            List<AvailableDisk> availableDisks = new List<AvailableDisk>();
+
+            foreach (Disk disk in disks)
+            {
+                var wq = String.Format("Id=\"{0}\"", disk.Guid);
+                var adisk = AvailableDisk.GetInstances(wq);
+                availableDisks.Add(adisk.OfType<AvailableDisk>().First());
+            }
+
+            return availableDisks;
+        }
+
+        private Disk.DiskCollection GetDiskISCSISession(ISCSISession session)
+        {
+            var iscsiString = "iSCSISession=\"\\\\\\\\.\\\\ROOT\\\\Microsoft\\\\windows\\\\storage:MSFT_iSCSISession.SessionIdentifier=\\\"{0}\\\"\"";
+
+            SelectQuery selectQuery = new SelectQuery("MSFT_iSCSISessionToDisk", String.Format(iscsiString, session.SessionIdentifier));
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetStorageManagementScope(), selectQuery);
+
+            var objects = searcher.Get();
+            if (objects.Count < 1)
+            {
+                ThrowWMIException("Specified iSCSI Target does not conatin any available disk");
+            }
+
+            string diskObjectId = null;
+
+            foreach (var diskToISCSISession in objects)
+            {
+                string disk = (string)diskToISCSISession["Disk"];
+                string[] groupTokens = disk.Split('"');
+                diskObjectId = groupTokens[1];
+            }
+
+            var wmiQuery = String.Format("ObjectId=\"{0}\"", diskObjectId);
+            return Disk.GetInstances(wmiQuery);
+        }
+
+        private ManagementScope GetStorageManagementScope()
+        {
+            ManagementScope mgmtScope = new System.Management.ManagementScope();
+            mgmtScope.Path.NamespacePath = "root\\Microsoft\\windows\\storage";
+            return mgmtScope;
+        }
+
+        private ManagementScope GetClusterManagementScope()
+        {
+            ManagementScope mgmtScope = new System.Management.ManagementScope();
+            mgmtScope.Path.NamespacePath = "root\\MSCluster";
+            return mgmtScope;
+        }
+
+        private void ThrowWMIException(string message)
+        {
+            var errMsg = string.Format(message);
+            var ex = new WmiException(errMsg);
+            logger.Error(errMsg, ex);
+            throw ex;
         }
     }
 

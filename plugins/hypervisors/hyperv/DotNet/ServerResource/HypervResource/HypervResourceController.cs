@@ -94,6 +94,17 @@ namespace HypervResource
             return settings.Get(getPrimaryKey(id));
         }
 
+        public void removePrimaryStorage(string id)
+        {
+            Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            KeyValueConfigurationCollection settings = config.AppSettings.Settings;
+            string key = getPrimaryKey(id);
+            if (settings[key] != null)
+            {
+                settings.Remove(key);
+            }
+        }
+
         public void setPrimaryStorage(string id, string path)
         {
             Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
@@ -907,9 +918,49 @@ namespace HypervResource
             using (log4net.NDC.Push(Guid.NewGuid().ToString()))
             {
                 logger.Info(CloudStackTypes.DeleteStoragePoolCommand + Utils.CleanString(cmd.ToString()));
-                object ansContent = new
+                string details = null;
+                string localPath;
+                StoragePoolType poolType;
+                object ansContent;
+
+                bool result = ValidateStoragePoolCommand(cmd, out localPath, out poolType, ref details);
+                if (!result)
                 {
-                    result = true,
+                    ansContent = new
+                    {
+                        result = result,
+                        details = details,
+                        contextMap = contextMap
+                    };
+                    return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.Answer);
+                }
+
+                if (poolType == StoragePoolType.IscsiLUN)
+                {
+                    string path = config.getPrimaryStorage((string)cmd.pool.uuid);
+
+                    if (path != null)
+                    {
+                        try
+                        {
+                            wmiCallsV2.RemoveScsiLun(path);
+                            config.removePrimaryStorage((string)cmd.pool.uuid);
+                        }
+                        catch (Exception e)
+                        {
+                            result = false;
+                            details = e.Message;
+                        }
+                    }
+                }
+                else
+                {
+                    details = "Current implementation does not delete local path corresponding to storage pool! except for iSCSI";
+                }
+
+                ansContent = new
+                {
+                    result = result,
                     details = "Current implementation does not delete local path corresponding to storage pool!",
                     contextMap = contextMap
                 };
@@ -986,6 +1037,48 @@ namespace HypervResource
                     Utils.GetShareDetails(share.UncPath, out capacityBytes, out availableBytes);
                     config.setPrimaryStorage((string)cmd.pool.uuid, hostPath);
                 }
+                else if (poolType == StoragePoolType.IscsiLUN)
+                {
+                    string[] pathInfo = ((string)cmd.pool.path).Split('/');
+                    if ((bool)cmd.add)
+                    {
+                        hostPath = config.getPrimaryStorage((string)cmd.pool.uuid);
+                        if (hostPath == null)
+                        {
+                            logger.Info("Adding iSCSI Lun");
+                            try
+                            {
+                                hostPath = wmiCallsV2.AddScsiLun(pathInfo[1], (string)cmd.pool.host, (ushort)cmd.pool.port, Convert.ToUInt32(pathInfo[2]));
+                            }
+                            catch (Exception e)
+                            {
+                                result = false;
+                                details = e.Message;
+                            }
+                            config.setPrimaryStorage((string)cmd.pool.uuid, hostPath);
+                        }
+                        /*else
+                        {
+                            wmiCallsV2.CSVTurnOffMaintainence(path);
+                            hostPath = path;
+                        }*/
+                        GetCapacityForLocalPath(hostPath, out capacityBytes, out availableBytes);
+                    }
+                    /*else
+                    {
+                        logger.Info("Putting iSCSI cluster shared volume in maintainence ");
+                        try
+                        {
+                            string path = config.getPrimaryStorage((string)cmd.pool.uuid);
+                            wmiCallsV2.CSVTurnOnMaintainence(path);
+                        }
+                        catch (Exception e)
+                        {
+                            result = false;
+                            details = e.Message;
+                        }
+                    }*/
+                }
                 else
                 {
                     result = false;
@@ -1052,7 +1145,7 @@ namespace HypervResource
 
             if (poolType != StoragePoolType.Filesystem &&
                 poolType != StoragePoolType.NetworkFilesystem &&
-                poolType != StoragePoolType.SMB)
+                poolType != StoragePoolType.SMB && poolType != StoragePoolType.IscsiLUN)
             {
                 details = "Request to create / modify unsupported pool type: " + (poolTypeStr == null ? "NULL" : poolTypeStr) + "in cmd " + JsonConvert.SerializeObject(cmd);
                 logger.Error(details);

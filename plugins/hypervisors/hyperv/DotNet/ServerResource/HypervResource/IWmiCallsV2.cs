@@ -1,4 +1,4 @@
-﻿// Licensed to the Apache Software Foundation (ASF) under one
+// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -74,5 +74,9 @@ namespace HypervResource
         void ModifyVmVLan(string vmName, String vlanid, uint pos, bool enable, string switchLabelName);
         void DisableVmNics();
         void DisableNicVlan(String mac, String vmName);
+        string AddScsiLun(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun);
+        void RemoveScsiLun(string volumePath);
+        void CSVTurnOnMaintainence(string volumePath);
+        void CSVTurnOffMaintainence(string volumePath);
     }
 }

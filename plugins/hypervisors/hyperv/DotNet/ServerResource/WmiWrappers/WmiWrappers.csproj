@@ -87,6 +87,33 @@
     <Compile Include="ROOT.CIMV2.Win32_Processor.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="ROOT.Microsoft.Windows.Storage.MSFT_Disk.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.Microsoft.Windows.Storage.MSFT_InitiatorPort.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.Microsoft.Windows.Storage.MSFT_iSCSISession.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.Microsoft.Windows.Storage.MSFT_iSCSITarget.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.MSCluster.MSCluster_AvailableDisk.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.MSCluster.MSCluster_Cluster.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.MsCluster.MSCluster_ClusterSharedVolume.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.MSCluster.MSCluster_Resource.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.MSCluster.MSCluster_ResourceGroup.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="ROOT.virtualization.v2.Msvm_ComputerSystem.cs">
       <SubType>Component</SubType>
     </Compile>
