@@ -1,4 +1,4 @@
-// Licensed to the Apache Software Foundation (ASF) under one
+﻿// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -78,5 +78,7 @@ namespace HypervResource
         void RemoveScsiLun(string volumePath);
         void CSVTurnOnMaintainence(string volumePath);
         void CSVTurnOffMaintainence(string volumePath);
+        string GetPoolPath(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun);
+        void GetVolumeDetails(string volumePath, out long capacityBytes, out long availableBytes);
     }
 }

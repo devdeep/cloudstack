@@ -31,6 +31,8 @@ using System.Net.NetworkInformation;
 using System.Net;
 using CloudStack.Plugin.WmiWrappers.ROOT.MICROSOFT.WINDOWS.STORAGE;
 using CloudStack.Plugin.WmiWrappers.ROOT.MSCLUSTER;
+using ClusterDisk = CloudStack.Plugin.WmiWrappers.ROOT.MSCLUSTER.Disk;
+using StorageDisk = CloudStack.Plugin.WmiWrappers.ROOT.MICROSOFT.WINDOWS.STORAGE.Disk;
 
 namespace HypervResource
 {
@@ -2767,7 +2769,6 @@ namespace HypervResource
         {
             if (IsClusterPresent())
             {
-//                string vmName = "Virtual Machine " + vm;
                 GetResourceGroup(vm).DestroyGroup(0);
             }
         }
@@ -2839,27 +2840,24 @@ namespace HypervResource
         private string AddDisksToClusterSharedVolumes(ISCSISession iSCSISession, uint lun)
         {
             // use iscsisession to get disk added with the given IQN. Do not other disks which are added by user from the system
-            var availableDisks = GetAvailableDiskToISCSISession(iSCSISession);
+            var availableDisk = GetAvailableDiskToISCSISession(iSCSISession, lun);
 
             string resourceName = null;
             string path = "";
 
-            foreach (AvailableDisk disk in availableDisks)
+            if (availableDisk != null)
             {
-                if (disk.ScsiLun == lun)
+                try
                 {
-                    try
-                    {
-                        disk.AddToCluster(disk.ResourceName, out path);
-                    }
-
-                    catch (Exception e) 
-                    {
-                        logger.Info("Generic error in adding disk to cluster, probably disk is added to cluster successfully " + e.Message);
-                    }
-                    resourceName = disk.ResourceName;
+                    availableDisk.AddToCluster(availableDisk.ResourceName, out path);
                 }
+                catch (Exception e)
+                {
+                    logger.Info("Generic error in adding disk to cluster, probably disk is added to cluster successfully " + e.Message);
+                }
+                resourceName = availableDisk.ResourceName;
             }
+
 
             if (resourceName != null)
             {
@@ -2880,7 +2878,7 @@ namespace HypervResource
 
             GetResource(resourceName).BringOnline(10000);
 
-            return GetCsvToDisk(resourceName);
+            return GetCsvToResource(resourceName);
         }
 
         private Resource GetResource(string resourceName)
@@ -2902,11 +2900,42 @@ namespace HypervResource
             if (IsClusterPresent())
             {
                 ISCSISession iSCSISession = GetISCSISession(NodeAddress, TargetPortalAddress, TargetPortalPortNumber);
-                //TODO how to get stats of disk
-                // get stats from msft_volume class
+                
+                // verify whether the volume is already connected to cluster
                 return AddDisksToClusterSharedVolumes(iSCSISession, lun);
             }
             ThrowWMIException("We cannot add iSCSI LUN to node which is not part of a Cluster");
+            return null;
+        }
+
+        public string GetPoolPath(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun)
+        {
+            StorageDisk storageDisk = null;
+            Volume vol = null;
+            ISCSISession iSCSISession = GetISCSISession(NodeAddress, TargetPortalAddress, TargetPortalPortNumber);
+
+            if (iSCSISession != null)
+            {
+                storageDisk = GetClusterDiskToISCSISession(iSCSISession, lun);
+
+                if (storageDisk != null)
+                {
+                    vol = GetVolumeToDisk(storageDisk.ObjectId);
+
+                    if (vol != null)
+                    {
+                        string volObjectId = vol.ObjectId;
+                        volObjectId = volObjectId.Replace("\\", "\\\\");
+                        var csv = GetCSVToVolume(volObjectId);
+
+                        if (csv != null)
+                        {
+                            return csv.Name;
+                        }
+                    }
+                }
+            }
+
             return null;
         }
 
@@ -2922,16 +2951,26 @@ namespace HypervResource
 
         public void CSVTurnOnMaintainence(string volumePath)
         {
-            var wmiQuery = String.Format("Name=\"{0}\"", volumePath);
-            var csvs = ClusterSharedVolume.GetInstances(wmiQuery);
-            csvs.OfType<ClusterSharedVolume>().First().TurnOnMaintenance();
+            GetCSVToPath(volumePath).TurnOnMaintenance();
         }
 
         public void CSVTurnOffMaintainence(string volumePath)
         {
+            GetCSVToPath(volumePath).TurnOffMaintenance();
+        }
+
+        private ClusterSharedVolume GetCSVToPath(string volumePath)
+        {
             var wmiQuery = String.Format("Name=\"{0}\"", volumePath);
             var csvs = ClusterSharedVolume.GetInstances(wmiQuery);
-            csvs.OfType<ClusterSharedVolume>().First().TurnOffMaintenance();
+            return csvs.OfType<ClusterSharedVolume>().First();
+        }
+
+        private ClusterSharedVolume GetCSVToVolume(string volumeName)
+        {
+            var wmiQuery = String.Format("VolumeName=\"{0}\"", volumeName);
+            var csvs = ClusterSharedVolume.GetInstances(wmiQuery);
+            return csvs.OfType<ClusterSharedVolume>().First();
         }
 
         private Cluster GetCluster()
@@ -2946,7 +2985,7 @@ namespace HypervResource
             return clusters.OfType<Cluster>().First();
         }
 
-        private string GetCsvToDisk(string resourceName)
+        private string GetCsvToResource(string resourceName)
         {
             SelectQuery selectQuery = new SelectQuery("MSCluster_ClusterSharedVolumeToResource", String.Format("PartComponent=\"MSCluster_Resource.Name=\\\"{0}\\\"\"", resourceName));
             ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetClusterManagementScope(), selectQuery);
@@ -2961,7 +3000,9 @@ namespace HypervResource
             {
                 string groupComponent = (string)csvToRes["GroupComponent"];
                 string[] groupTokens = groupComponent.Split('"');
-                return groupTokens[1];
+                string csvName = groupTokens[1];
+                csvName = csvName.Replace("\\\\", "\\");
+                return csvName;
             }
 
             ThrowWMIException("Specified disk resource does not exist");
@@ -2996,23 +3037,97 @@ namespace HypervResource
             return disks.OfType<Resource>().First();
         }
 
-        private List<AvailableDisk> GetAvailableDiskToISCSISession(ISCSISession session)
+        private AvailableDisk GetAvailableDiskToISCSISession(ISCSISession session, uint lun)
         {
             var disks = GetDiskISCSISession(session);
 
-            List<AvailableDisk> availableDisks = new List<AvailableDisk>();
-
-            foreach (Disk disk in disks)
+            if (disks != null)
             {
-                var wq = String.Format("Id=\"{0}\"", disk.Guid);
-                var adisk = AvailableDisk.GetInstances(wq);
-                availableDisks.Add(adisk.OfType<AvailableDisk>().First());
+                foreach (StorageDisk disk in disks)
+                {
+                    var wq = String.Format("Id=\"{0}\"", disk.Guid);
+                    var adisk = AvailableDisk.GetInstances(wq);
+                    var availableDisk = adisk.OfType<AvailableDisk>().First();
+                    if (availableDisk.ScsiLun == lun)
+                    {
+                        return availableDisk;
+                    }
+                }
             }
 
-            return availableDisks;
+            return null;
         }
 
-        private Disk.DiskCollection GetDiskISCSISession(ISCSISession session)
+        private StorageDisk GetClusterDiskToISCSISession(ISCSISession session, uint lun)
+        {
+            var disks = GetDiskISCSISession(session);
+
+            if (disks != null)
+            {
+                foreach (StorageDisk disk in disks)
+                {
+                    var wq = String.Format("Id=\"{0}\"", disk.Guid);
+                    var clusterDisks = ClusterDisk.GetInstances(wq);
+                    var clusterDisk = clusterDisks.OfType<ClusterDisk>().First();
+                    if (clusterDisk.ScsiLun == lun)
+                    {
+                        return disk;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private Volume GetVolumeToDisk(string disk)
+        {
+            SelectQuery selectQuery = new SelectQuery("MSFT_PartitionToVolume");
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetStorageManagementScope(), selectQuery);
+
+            var objects = searcher.Get();
+            if (objects.Count < 1)
+            {
+                ThrowWMIException("Specified Disk does not conatin any volume");
+            }
+
+            string volumeId = null;
+            disk = disk.Replace("\\", "\\\\");
+
+            foreach (var volToPartition in objects)
+            {
+                string partition = (string)volToPartition["Partition"];
+                if (partition.Contains(disk))
+                {
+                    var vol = (string)volToPartition["Volume"];
+                    string[] volTokens = vol.Split('"');
+                    volumeId = volTokens[1];
+                    break;
+                }
+            }
+
+            return GetVolume(volumeId);
+        }
+
+        private Volume GetVolume(string objectId)
+        {
+            var wmiQuery = String.Format("ObjectId=\"{0}\"", objectId);
+            var volumes = Volume.GetInstances(wmiQuery);
+
+            return volumes.OfType<Volume>().First();
+        }
+
+        public void GetVolumeDetails(string volumePath, out long capacityBytes, out long availableBytes)
+        {
+            volumePath = volumePath.Replace("\\", "\\\\");
+            ClusterSharedVolume csv = GetCSVToPath(volumePath);
+            string volumeName = csv.VolumeName;
+            volumeName = volumeName.Replace("\\", "\\\\");
+            Volume vol = GetVolume(volumeName);
+            capacityBytes = (long)vol.Size;
+            availableBytes = (long)vol.SizeRemaining;
+        }
+
+        private StorageDisk.DiskCollection GetDiskISCSISession(ISCSISession session)
         {
             var iscsiString = "iSCSISession=\"\\\\\\\\.\\\\ROOT\\\\Microsoft\\\\windows\\\\storage:MSFT_iSCSISession.SessionIdentifier=\\\"{0}\\\"\"";
 
@@ -3035,7 +3150,7 @@ namespace HypervResource
             }
 
             var wmiQuery = String.Format("ObjectId=\"{0}\"", diskObjectId);
-            return Disk.GetInstances(wmiQuery);
+            return StorageDisk.GetInstances(wmiQuery);
         }
 
         private ManagementScope GetStorageManagementScope()

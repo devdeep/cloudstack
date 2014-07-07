@@ -99,6 +99,9 @@
     <Compile Include="ROOT.Microsoft.Windows.Storage.MSFT_iSCSITarget.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="ROOT.microsoft.windows.storage.MSFT_Volume.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="ROOT.MSCluster.MSCluster_AvailableDisk.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -106,6 +109,9 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="ROOT.MsCluster.MSCluster_ClusterSharedVolume.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ROOT.MSCluster.MSCluster_Disk.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="ROOT.MSCluster.MSCluster_Resource.cs">

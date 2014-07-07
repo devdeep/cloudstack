@@ -1,4 +1,4 @@
-﻿// Licensed to the Apache Software Foundation (ASF) under one
+// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -36,6 +36,7 @@ namespace HypervResource
         private string poolType;
         public Uri uri;
         public string _role;
+        public ushort port;
 
         public string Path
         {
@@ -130,6 +131,21 @@ namespace HypervResource
             }
         }
 
+        public Boolean isISCSI
+        {
+            get
+            {
+                if (poolType.Equals("IscsiLUN"))
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
         public static PrimaryDataStoreTO ParseJson(dynamic json)
         {
             PrimaryDataStoreTO result = null;
@@ -145,7 +161,8 @@ namespace HypervResource
                 {
                     path = (string)primaryDataStoreTOJson.path,
                     host = (string)primaryDataStoreTOJson.host,
-                    poolType = (string)primaryDataStoreTOJson.poolType
+                    poolType = (string)primaryDataStoreTOJson.poolType,
+                    port = (ushort)primaryDataStoreTOJson.port
                 };
 
                 if (!result.isLocal)
@@ -179,6 +196,17 @@ namespace HypervResource
                             volume = this.uuid;
                         }
                         fileName = Path.Combine(store.Path, volume);
+                    }
+                    else if (store.isISCSI)
+                    {
+                        string[] pathInfo = (store.Path).Split('/');
+                        String volume = this.path;
+                        if (String.IsNullOrEmpty(volume))
+                        {
+                            volume = this.uuid;
+                        }
+
+                        fileName = CloudStackTypes.wmiCallsV2.GetPoolPath(pathInfo[1], (string)store.host, store.port, Convert.ToUInt32(pathInfo[2])) + @"\" + volume;
                     }
                     else
                     {
@@ -337,6 +365,12 @@ namespace HypervResource
                     if (store.isLocal)
                     {
                         fileName = Path.Combine(store.Path, this.uuid);
+                    }
+                    else if (store.isISCSI)
+                    {
+                        string[] pathInfo = (store.Path).Split('/');
+
+                        fileName = CloudStackTypes.wmiCallsV2.GetPoolPath(pathInfo[1], (string)store.host, store.port, Convert.ToUInt32(pathInfo[2])) + @"\" + this.uuid;
                     }
                     else
                     {
@@ -741,6 +775,11 @@ namespace HypervResource
     /// </summary>
     public class CloudStackTypes
     {
+        public static IWmiCallsV2 wmiCallsV2
+        {
+            get;
+            set;
+        }
         public const string Answer = "com.cloud.agent.api.Answer";
         public const string AttachIsoCommand = "com.cloud.agent.api.AttachIsoCommand";
         public const string AttachVolumeAnswer = "com.cloud.agent.api.AttachVolumeAnswer";

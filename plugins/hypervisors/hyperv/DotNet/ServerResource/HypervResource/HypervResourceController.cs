@@ -1,4 +1,4 @@
-﻿// Licensed to the Apache Software Foundation (ASF) under one
+// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -175,7 +175,21 @@ namespace HypervResource
         {
         }
 
-        public static IWmiCallsV2 wmiCallsV2 { get; set;}
+        // below variable to avoid infinite loop/recursion
+        private static IWmiCallsV2 wmiCalls;
+
+        public static IWmiCallsV2 wmiCallsV2 
+        {
+            get
+            {
+                return wmiCalls;
+            }
+            set
+            {
+                wmiCalls = value;
+                CloudStackTypes.wmiCallsV2 = value;
+            }
+        }
 
         // GET api/HypervResource
         public string Get()
@@ -1048,21 +1062,35 @@ namespace HypervResource
                             logger.Info("Adding iSCSI Lun");
                             try
                             {
-                                hostPath = wmiCallsV2.AddScsiLun(pathInfo[1], (string)cmd.pool.host, (ushort)cmd.pool.port, Convert.ToUInt32(pathInfo[2]));
+                                try
+                                {
+                                    hostPath = wmiCallsV2.GetPoolPath(pathInfo[1], (string)cmd.pool.host, (ushort)cmd.pool.port, Convert.ToUInt32(pathInfo[2]));
+                                }
+                                catch (Exception e)
+                                {
+                                    logger.Info("Disk is not already added to CSV we will try to add it now " + e.Message);
+                                }
+                                if (hostPath == null)
+                                {
+                                    hostPath = wmiCallsV2.AddScsiLun(pathInfo[1], (string)cmd.pool.host, (ushort)cmd.pool.port, Convert.ToUInt32(pathInfo[2]));
+                                }
+                                config.setPrimaryStorage((string)cmd.pool.uuid, hostPath);
                             }
                             catch (Exception e)
                             {
                                 result = false;
                                 details = e.Message;
                             }
-                            config.setPrimaryStorage((string)cmd.pool.uuid, hostPath);
                         }
                         /*else
                         {
                             wmiCallsV2.CSVTurnOffMaintainence(path);
                             hostPath = path;
                         }*/
-                        GetCapacityForLocalPath(hostPath, out capacityBytes, out availableBytes);
+                        if (hostPath != null)
+                        {
+                            wmiCallsV2.GetVolumeDetails(hostPath, out capacityBytes, out availableBytes);
+                        }
                     }
                     /*else
                     {
@@ -2022,18 +2050,25 @@ namespace HypervResource
                     }
                     else if (poolType == StoragePoolType.Filesystem)
                     {
-                        hostPath = (string)cmd.localPath;;
+                        hostPath = (string)cmd.localPath;
                         GetCapacityForLocalPath(hostPath, out capacity, out available);
                         used = capacity - available;
                         result = true;
                     }
-                    else if (poolType == StoragePoolType.NetworkFilesystem || poolType == StoragePoolType.SMB)
+                    else if (poolType == StoragePoolType.NetworkFilesystem || poolType == StoragePoolType.SMB || poolType == StoragePoolType.IscsiLUN)
                     {
                         string sharePath = config.getPrimaryStorage((string)cmd.id);
                         if (sharePath != null)
                         {
                             hostPath = sharePath;
-                            Utils.GetShareDetails(sharePath, out capacity, out available);
+                            if (poolType == StoragePoolType.IscsiLUN)
+                            {
+                                wmiCallsV2.GetVolumeDetails(hostPath, out capacity, out available);
+                            }
+                            else
+                            {
+                                Utils.GetShareDetails(sharePath, out capacity, out available);
+                            }
                             used = capacity - available;
                             result = true;
                         }
