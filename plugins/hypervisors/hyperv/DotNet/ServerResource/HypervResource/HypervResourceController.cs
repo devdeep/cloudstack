@@ -178,7 +178,7 @@ namespace HypervResource
         // below variable to avoid infinite loop/recursion
         private static IWmiCallsV2 wmiCalls;
 
-        public static IWmiCallsV2 wmiCallsV2 
+        public static IWmiCallsV2 wmiCallsV2
         {
             get
             {
@@ -932,49 +932,11 @@ namespace HypervResource
             using (log4net.NDC.Push(Guid.NewGuid().ToString()))
             {
                 logger.Info(CloudStackTypes.DeleteStoragePoolCommand + Utils.CleanString(cmd.ToString()));
-                string details = null;
-                string localPath;
-                StoragePoolType poolType;
                 object ansContent;
-
-                bool result = ValidateStoragePoolCommand(cmd, out localPath, out poolType, ref details);
-                if (!result)
-                {
-                    ansContent = new
-                    {
-                        result = result,
-                        details = details,
-                        contextMap = contextMap
-                    };
-                    return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.Answer);
-                }
-
-                if (poolType == StoragePoolType.IscsiLUN)
-                {
-                    string path = config.getPrimaryStorage((string)cmd.pool.uuid);
-
-                    if (path != null)
-                    {
-                        try
-                        {
-                            wmiCallsV2.RemoveScsiLun(path);
-                            config.removePrimaryStorage((string)cmd.pool.uuid);
-                        }
-                        catch (Exception e)
-                        {
-                            result = false;
-                            details = e.Message;
-                        }
-                    }
-                }
-                else
-                {
-                    details = "Current implementation does not delete local path corresponding to storage pool! except for iSCSI";
-                }
 
                 ansContent = new
                 {
-                    result = result,
+                    result = true,
                     details = "Current implementation does not delete local path corresponding to storage pool!",
                     contextMap = contextMap
                 };
@@ -1051,28 +1013,23 @@ namespace HypervResource
                     Utils.GetShareDetails(share.UncPath, out capacityBytes, out availableBytes);
                     config.setPrimaryStorage((string)cmd.pool.uuid, hostPath);
                 }
-                else if (poolType == StoragePoolType.IscsiLUN)
+                else if (poolType == StoragePoolType.PreSetup)
                 {
-                    string[] pathInfo = ((string)cmd.pool.path).Split('/');
                     if ((bool)cmd.add)
                     {
                         hostPath = config.getPrimaryStorage((string)cmd.pool.uuid);
                         if (hostPath == null)
                         {
-                            logger.Info("Adding iSCSI Lun");
+                            logger.Info("Validating iSCSI Lun");
                             try
                             {
                                 try
                                 {
-                                    hostPath = wmiCallsV2.GetPoolPath(pathInfo[1], (string)cmd.pool.host, (ushort)cmd.pool.port, Convert.ToUInt32(pathInfo[2]));
+                                    hostPath = wmiCallsV2.FindClusterSharedVolume((string)cmd.pool.path);
                                 }
                                 catch (Exception e)
                                 {
-                                    logger.Info("Disk is not already added to CSV we will try to add it now " + e.Message);
-                                }
-                                if (hostPath == null)
-                                {
-                                    hostPath = wmiCallsV2.AddScsiLun(pathInfo[1], (string)cmd.pool.host, (ushort)cmd.pool.port, Convert.ToUInt32(pathInfo[2]));
+                                    logger.Info("Disk is not already added to CSV " + e.Message);
                                 }
                                 config.setPrimaryStorage((string)cmd.pool.uuid, hostPath);
                             }
@@ -1082,30 +1039,12 @@ namespace HypervResource
                                 details = e.Message;
                             }
                         }
-                        /*else
-                        {
-                            wmiCallsV2.CSVTurnOffMaintainence(path);
-                            hostPath = path;
-                        }*/
+
                         if (hostPath != null)
                         {
-                            wmiCallsV2.GetVolumeDetails(hostPath, out capacityBytes, out availableBytes);
+                            Utils.GetShareDetails(hostPath, out capacityBytes, out availableBytes);
                         }
                     }
-                    /*else
-                    {
-                        logger.Info("Putting iSCSI cluster shared volume in maintainence ");
-                        try
-                        {
-                            string path = config.getPrimaryStorage((string)cmd.pool.uuid);
-                            wmiCallsV2.CSVTurnOnMaintainence(path);
-                        }
-                        catch (Exception e)
-                        {
-                            result = false;
-                            details = e.Message;
-                        }
-                    }*/
                 }
                 else
                 {
@@ -1173,7 +1112,7 @@ namespace HypervResource
 
             if (poolType != StoragePoolType.Filesystem &&
                 poolType != StoragePoolType.NetworkFilesystem &&
-                poolType != StoragePoolType.SMB && poolType != StoragePoolType.IscsiLUN)
+                poolType != StoragePoolType.SMB && poolType != StoragePoolType.PreSetup)
             {
                 details = "Request to create / modify unsupported pool type: " + (poolTypeStr == null ? "NULL" : poolTypeStr) + "in cmd " + JsonConvert.SerializeObject(cmd);
                 logger.Error(details);
@@ -1387,7 +1326,7 @@ namespace HypervResource
                     string volumeName = volume.uuid + ".vhdx";
                     string volumePath = null;
 
-                    if (primary.isLocal)
+                    if (primary.isLocal || primary.isPreSetup)
                     {
                         volumePath = Path.Combine(primary.Path, volumeName);
                     }
@@ -2055,20 +1994,13 @@ namespace HypervResource
                         used = capacity - available;
                         result = true;
                     }
-                    else if (poolType == StoragePoolType.NetworkFilesystem || poolType == StoragePoolType.SMB || poolType == StoragePoolType.IscsiLUN)
+                    else if (poolType == StoragePoolType.NetworkFilesystem || poolType == StoragePoolType.SMB || poolType == StoragePoolType.PreSetup)
                     {
                         string sharePath = config.getPrimaryStorage((string)cmd.id);
                         if (sharePath != null)
                         {
                             hostPath = sharePath;
-                            if (poolType == StoragePoolType.IscsiLUN)
-                            {
-                                wmiCallsV2.GetVolumeDetails(hostPath, out capacity, out available);
-                            }
-                            else
-                            {
-                                Utils.GetShareDetails(sharePath, out capacity, out available);
-                            }
+                            Utils.GetShareDetails(hostPath, out capacity, out available);
                             used = capacity - available;
                             result = true;
                         }
@@ -2335,6 +2267,10 @@ namespace HypervResource
             else if (poolType == StoragePoolType.Filesystem)
             {
                 return pool.path;
+            }
+            else if (poolType == StoragePoolType.PreSetup)
+            {
+                return wmiCallsV2.FindClusterSharedVolume((string)pool.path);
             }
 
             throw new ArgumentException("Couldn't parse path for pool type " + poolTypeStr);

@@ -74,11 +74,6 @@ namespace HypervResource
         void ModifyVmVLan(string vmName, String vlanid, uint pos, bool enable, string switchLabelName);
         void DisableVmNics();
         void DisableNicVlan(String mac, String vmName);
-        string AddScsiLun(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun);
-        void RemoveScsiLun(string volumePath);
-        void CSVTurnOnMaintainence(string volumePath);
-        void CSVTurnOffMaintainence(string volumePath);
-        string GetPoolPath(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun);
-        void GetVolumeDetails(string volumePath, out long capacityBytes, out long availableBytes);
+        string FindClusterSharedVolume(string volumeName);
     }
 }

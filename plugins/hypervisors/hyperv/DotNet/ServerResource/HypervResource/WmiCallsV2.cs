@@ -2799,88 +2799,6 @@ namespace HypervResource
             return resGroups.OfType<ResourceGroup>().First();
         }
 
-        private ISCSISession GetISCSISession(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber)
-        {
-            var wmiQuery = String.Format("TargetNodeAddress=\"{0}\"", NodeAddress);
-            var sessions = ISCSISession.GetInstances(wmiQuery);
-
-            foreach (ISCSISession session in sessions)
-            {
-                return session;
-            }
-            var initiatorPorts = InitiatorPort.GetInstances();
-            if(initiatorPorts.Count < 1) 
-            {
-                ThrowWMIException("Internal error, could not find the default initiator to connect to target iSCSI");
-            }
-
-            var initiatorPort = initiatorPorts.OfType<InitiatorPort>().First();
-            ManagementBaseObject iSCSISession = null;
-
-            try
-            {
-                var ret_val = ISCSITarget.Connect("None", null, null, initiatorPort.InstanceName, initiatorPort.NodeAddress, false, false, false, true, NodeAddress, false, TargetPortalAddress, TargetPortalPortNumber, out iSCSISession);
-
-                /* see what is the correct return code and corresponding throe exception and error
-                 * no proper documentation available, have to identify by debugging*/
-                if (ret_val == ReturnCode.Completed)
-                {
-                    return new ISCSISession(iSCSISession);
-                }
-            }
-            catch (Exception e)
-            {
-                ThrowWMIException("Not able to connect to target iSCSI " + e.Message);
-            }
-
-            ThrowWMIException("Not able to connect to target iSCSI");
-            return null;
-        }
-
-        private string AddDisksToClusterSharedVolumes(ISCSISession iSCSISession, uint lun)
-        {
-            // use iscsisession to get disk added with the given IQN. Do not other disks which are added by user from the system
-            var availableDisk = GetAvailableDiskToISCSISession(iSCSISession, lun);
-
-            string resourceName = null;
-            string path = "";
-
-            if (availableDisk != null)
-            {
-                try
-                {
-                    availableDisk.AddToCluster(availableDisk.ResourceName, out path);
-                }
-                catch (Exception e)
-                {
-                    logger.Info("Generic error in adding disk to cluster, probably disk is added to cluster successfully " + e.Message);
-                }
-                resourceName = availableDisk.ResourceName;
-            }
-
-
-            if (resourceName != null)
-            {
-                Cluster cluster = GetCluster();
-                try
-                {
-                    cluster.AddResourceToClusterSharedVolumes(resourceName);
-                }
-                catch (Exception e)
-                {
-                    logger.Info("Generic error in adding disk as CSV, probably disk is added as CSV successfully " + e.Message);
-                }
-            }
-            else
-            {
-                ThrowWMIException("iSCSI target doesn't contains the specified LUN");
-            }
-
-            GetResource(resourceName).BringOnline(10000);
-
-            return GetCsvToResource(resourceName);
-        }
-
         private Resource GetResource(string resourceName)
         {
             var wmiQuery = String.Format("Name=\"{0}\"", resourceName);
@@ -2895,80 +2813,20 @@ namespace HypervResource
 
         }
 
-        public string AddScsiLun(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun)
+        public string FindClusterSharedVolume(string volumeName)
         {
+            volumeName = volumeName.Substring(1);
             if (IsClusterPresent())
             {
-                ISCSISession iSCSISession = GetISCSISession(NodeAddress, TargetPortalAddress, TargetPortalPortNumber);
-                
-                // verify whether the volume is already connected to cluster
-                return AddDisksToClusterSharedVolumes(iSCSISession, lun);
+                return GetCsvToResource(volumeName);
             }
-            ThrowWMIException("We cannot add iSCSI LUN to node which is not part of a Cluster");
+            ThrowWMIException("Cluster Shared Volume with specified disk name does not exist");
             return null;
-        }
-
-        public string GetPoolPath(string NodeAddress, string TargetPortalAddress, ushort TargetPortalPortNumber, uint lun)
-        {
-            StorageDisk storageDisk = null;
-            Volume vol = null;
-            ISCSISession iSCSISession = GetISCSISession(NodeAddress, TargetPortalAddress, TargetPortalPortNumber);
-
-            if (iSCSISession != null)
-            {
-                storageDisk = GetClusterDiskToISCSISession(iSCSISession, lun);
-
-                if (storageDisk != null)
-                {
-                    vol = GetVolumeToDisk(storageDisk.ObjectId);
-
-                    if (vol != null)
-                    {
-                        string volObjectId = vol.ObjectId;
-                        volObjectId = volObjectId.Replace("\\", "\\\\");
-                        var csv = GetCSVToVolume(volObjectId);
-
-                        if (csv != null)
-                        {
-                            return csv.Name;
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        public void RemoveScsiLun(string volumePath)
-        {
-            // we are not putting disk in maintainence on server, this may conflict with cloudstack meaning f maintainence
-            //CSVTurnOffMaintainence(volumePath);
-            Resource diskResource = GetResourceToCsv(volumePath);
-            diskResource.TakeOffline(0, null, 10000);
-            GetCluster().RemoveResourceFromClusterSharedVolumes(diskResource.Name);
-            diskResource.Delete();
-        }
-
-        public void CSVTurnOnMaintainence(string volumePath)
-        {
-            GetCSVToPath(volumePath).TurnOnMaintenance();
-        }
-
-        public void CSVTurnOffMaintainence(string volumePath)
-        {
-            GetCSVToPath(volumePath).TurnOffMaintenance();
         }
 
         private ClusterSharedVolume GetCSVToPath(string volumePath)
         {
             var wmiQuery = String.Format("Name=\"{0}\"", volumePath);
-            var csvs = ClusterSharedVolume.GetInstances(wmiQuery);
-            return csvs.OfType<ClusterSharedVolume>().First();
-        }
-
-        private ClusterSharedVolume GetCSVToVolume(string volumeName)
-        {
-            var wmiQuery = String.Format("VolumeName=\"{0}\"", volumeName);
             var csvs = ClusterSharedVolume.GetInstances(wmiQuery);
             return csvs.OfType<ClusterSharedVolume>().First();
         }
@@ -3035,129 +2893,6 @@ namespace HypervResource
             var disks = Resource.GetInstances(wmiQuery);
 
             return disks.OfType<Resource>().First();
-        }
-
-        private AvailableDisk GetAvailableDiskToISCSISession(ISCSISession session, uint lun)
-        {
-            var disks = GetDiskISCSISession(session);
-
-            if (disks != null)
-            {
-                foreach (StorageDisk disk in disks)
-                {
-                    var wq = String.Format("Id=\"{0}\"", disk.Guid);
-                    var adisk = AvailableDisk.GetInstances(wq);
-                    var availableDisk = adisk.OfType<AvailableDisk>().First();
-                    if (availableDisk.ScsiLun == lun)
-                    {
-                        return availableDisk;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private StorageDisk GetClusterDiskToISCSISession(ISCSISession session, uint lun)
-        {
-            var disks = GetDiskISCSISession(session);
-
-            if (disks != null)
-            {
-                foreach (StorageDisk disk in disks)
-                {
-                    var wq = String.Format("Id=\"{0}\"", disk.Guid);
-                    var clusterDisks = ClusterDisk.GetInstances(wq);
-                    var clusterDisk = clusterDisks.OfType<ClusterDisk>().First();
-                    if (clusterDisk.ScsiLun == lun)
-                    {
-                        return disk;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private Volume GetVolumeToDisk(string disk)
-        {
-            SelectQuery selectQuery = new SelectQuery("MSFT_PartitionToVolume");
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetStorageManagementScope(), selectQuery);
-
-            var objects = searcher.Get();
-            if (objects.Count < 1)
-            {
-                ThrowWMIException("Specified Disk does not conatin any volume");
-            }
-
-            string volumeId = null;
-            disk = disk.Replace("\\", "\\\\");
-
-            foreach (var volToPartition in objects)
-            {
-                string partition = (string)volToPartition["Partition"];
-                if (partition.Contains(disk))
-                {
-                    var vol = (string)volToPartition["Volume"];
-                    string[] volTokens = vol.Split('"');
-                    volumeId = volTokens[1];
-                    break;
-                }
-            }
-
-            return GetVolume(volumeId);
-        }
-
-        private Volume GetVolume(string objectId)
-        {
-            var wmiQuery = String.Format("ObjectId=\"{0}\"", objectId);
-            var volumes = Volume.GetInstances(wmiQuery);
-
-            return volumes.OfType<Volume>().First();
-        }
-
-        public void GetVolumeDetails(string volumePath, out long capacityBytes, out long availableBytes)
-        {
-            volumePath = volumePath.Replace("\\", "\\\\");
-            ClusterSharedVolume csv = GetCSVToPath(volumePath);
-            string volumeName = csv.VolumeName;
-            volumeName = volumeName.Replace("\\", "\\\\");
-            Volume vol = GetVolume(volumeName);
-            capacityBytes = (long)vol.Size;
-            availableBytes = (long)vol.SizeRemaining;
-        }
-
-        private StorageDisk.DiskCollection GetDiskISCSISession(ISCSISession session)
-        {
-            var iscsiString = "iSCSISession=\"\\\\\\\\.\\\\ROOT\\\\Microsoft\\\\windows\\\\storage:MSFT_iSCSISession.SessionIdentifier=\\\"{0}\\\"\"";
-
-            SelectQuery selectQuery = new SelectQuery("MSFT_iSCSISessionToDisk", String.Format(iscsiString, session.SessionIdentifier));
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetStorageManagementScope(), selectQuery);
-
-            var objects = searcher.Get();
-            if (objects.Count < 1)
-            {
-                ThrowWMIException("Specified iSCSI Target does not conatin any available disk");
-            }
-
-            string diskObjectId = null;
-
-            foreach (var diskToISCSISession in objects)
-            {
-                string disk = (string)diskToISCSISession["Disk"];
-                string[] groupTokens = disk.Split('"');
-                diskObjectId = groupTokens[1];
-            }
-
-            var wmiQuery = String.Format("ObjectId=\"{0}\"", diskObjectId);
-            return StorageDisk.GetInstances(wmiQuery);
-        }
-
-        private ManagementScope GetStorageManagementScope()
-        {
-            ManagementScope mgmtScope = new System.Management.ManagementScope();
-            mgmtScope.Path.NamespacePath = "root\\Microsoft\\windows\\storage";
-            return mgmtScope;
         }
 
         private ManagementScope GetClusterManagementScope()

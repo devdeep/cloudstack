@@ -46,6 +46,10 @@ namespace HypervResource
                 {
                     return path;
                 }
+                else if (this.isPreSetup)
+                {
+                    return CloudStackTypes.wmiCallsV2.FindClusterSharedVolume(path);
+                }
                 else
                 {
                     return this.UncPath;
@@ -66,6 +70,7 @@ namespace HypervResource
                 {
                     uncPath = @"\\" + uri.Host + uri.LocalPath;
                 }
+
                 return uncPath;
             }
         }
@@ -131,11 +136,11 @@ namespace HypervResource
             }
         }
 
-        public Boolean isISCSI
+        public Boolean isPreSetup
         {
             get
             {
-                if (poolType.Equals("IscsiLUN"))
+                if (poolType.Equals("PreSetup"))
                 {
                     return true;
                 }
@@ -165,10 +170,15 @@ namespace HypervResource
                     port = (ushort)primaryDataStoreTOJson.port
                 };
 
-                if (!result.isLocal)
+                if (!result.isLocal && !result.isPreSetup)
                 {
                     // Delete security credentials in original command.  Prevents logger from spilling the beans, as it were.
                     String uriStr = @"cifs://" + result.host + result.path;
+                    result.uri = new Uri(uriStr);
+                }
+                else if (result.isPreSetup)
+                {
+                    string uriStr = @"presetup://" + result.host + result.path;
                     result.uri = new Uri(uriStr);
                 }
             }
@@ -188,7 +198,7 @@ namespace HypervResource
                 if (this.primaryDataStore != null)
                 {
                     PrimaryDataStoreTO store = this.primaryDataStore;
-                    if (store.isLocal)
+                    if (store.isLocal || store.isPreSetup)
                     {
                         String volume = this.path;
                         if (String.IsNullOrEmpty(volume))
@@ -196,17 +206,6 @@ namespace HypervResource
                             volume = this.uuid;
                         }
                         fileName = Path.Combine(store.Path, volume);
-                    }
-                    else if (store.isISCSI)
-                    {
-                        string[] pathInfo = (store.Path).Split('/');
-                        String volume = this.path;
-                        if (String.IsNullOrEmpty(volume))
-                        {
-                            volume = this.uuid;
-                        }
-
-                        fileName = CloudStackTypes.wmiCallsV2.GetPoolPath(pathInfo[1], (string)store.host, store.port, Convert.ToUInt32(pathInfo[2])) + @"\" + volume;
                     }
                     else
                     {
@@ -366,11 +365,9 @@ namespace HypervResource
                     {
                         fileName = Path.Combine(store.Path, this.uuid);
                     }
-                    else if (store.isISCSI)
+                    else if (store.isPreSetup)
                     {
-                        string[] pathInfo = (store.Path).Split('/');
-
-                        fileName = CloudStackTypes.wmiCallsV2.GetPoolPath(pathInfo[1], (string)store.host, store.port, Convert.ToUInt32(pathInfo[2])) + @"\" + this.uuid;
+                        fileName = store.Path + @"\" + this.uuid;
                     }
                     else
                     {
