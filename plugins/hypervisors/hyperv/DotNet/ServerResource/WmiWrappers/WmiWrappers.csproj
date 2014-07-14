@@ -114,6 +114,9 @@
     <Compile Include="ROOT.MSCluster.MSCluster_Disk.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="ROOT.MSCluster.MSCluster_Node.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="ROOT.MSCluster.MSCluster_Resource.cs">
       <SubType>Component</SubType>
     </Compile>

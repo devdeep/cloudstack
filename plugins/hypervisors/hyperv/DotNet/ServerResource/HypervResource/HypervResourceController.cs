@@ -811,13 +811,24 @@ namespace HypervResource
                 bool result = true;
                 try
                 {
-                    foreach (string poolPath in config.getAllPrimaryStorages())
+                    if (wmiCallsV2.IsClusterPresent())
                     {
-                        if (IsHostAlive(poolPath, (string)cmd.host.privateNetwork.ip))
+                        if (wmiCallsV2.IsHostAlive((string)cmd.host.privateNetwork.ip))
                         {
                             result = false;
                             details = "host is alive";
-                            break;
+                        }
+                    }
+                    else
+                    {
+                        foreach (string poolPath in config.getAllPrimaryStorages())
+                        {
+                            if (IsHostAlive(poolPath, (string)cmd.host.privateNetwork.ip))
+                            {
+                                result = false;
+                                details = "host is alive";
+                                break;
+                            }
                         }
                     }
                 }
@@ -1073,7 +1084,7 @@ namespace HypervResource
                     contextMap = contextMap
                 };
 
-                if (result)
+                if (!wmiCallsV2.IsClusterPresent() && result)
                 {
                     try
                     {

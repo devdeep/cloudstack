@@ -1,4 +1,4 @@
-﻿// Licensed to the Apache Software Foundation (ASF) under one
+// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -33,7 +33,7 @@ namespace HypervResource
         void AttachDisk(string vmName, string diskPath, string addressOnController);
         void CreateDynamicVirtualHardDisk(ulong MaxInternalSize, string Path);
         SyntheticEthernetPortSettingData CreateNICforVm(ComputerSystem vm, string mac);
-        ComputerSystem CreateVM(string name, long memory_mb, int vcpus);
+        ComputerSystem CreateVM(string name, long memory_mb, int vcpus, string configurationDataRoot);
         void DeleteHostKvpItem(ComputerSystem vm, string key);
         void DeleteSwitchPort(string elementName);
         ComputerSystem DeployVirtualMachine(dynamic jsonObj, string systemVmIso);
@@ -75,5 +75,7 @@ namespace HypervResource
         void DisableVmNics();
         void DisableNicVlan(String mac, String vmName);
         string FindClusterSharedVolume(string volumeName);
+        bool IsHostAlive(string host);
+        bool IsClusterPresent();
     }
 }

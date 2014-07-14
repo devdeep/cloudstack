@@ -119,13 +119,13 @@ namespace HypervResource
         /// <summary>
         /// Returns ComputerSystem lacking any NICs and VOLUMEs
         /// </summary>
-        public ComputerSystem CreateVM(string name, long memory_mb, int vcpus)
+        public ComputerSystem CreateVM(string name, long memory_mb, int vcpus, string configurationDataRoot)
         {
             // Obtain controller for Hyper-V virtualisation subsystem
             VirtualSystemManagementService vmMgmtSvc = GetVirtualisationSystemManagementService();
 
             // Create VM with correct name and default resources
-            ComputerSystem vm = CreateDefaultVm(vmMgmtSvc, name);
+            ComputerSystem vm = CreateDefaultVm(vmMgmtSvc, name, configurationDataRoot);
 
             // Update the resource settings for the VM.
 
@@ -280,9 +280,28 @@ namespace HypervResource
                 }
             }
 
+            // find the root disk storage pool to put vm configuration data in that place as clustered vm requires configuration data on shared storage
+            string configurationDataRoot = null;
+            foreach (var diskDrive in diskDrives)
+            {
+                if (diskDrive.type == "ROOT")
+                {
+                    VolumeObjectTO volInfo = VolumeObjectTO.ParseJson(diskDrive.data);
+                    if (volInfo != null && volInfo.primaryDataStore != null && !String.IsNullOrEmpty(volInfo.primaryDataStore.Path))
+                    {
+                        configurationDataRoot = volInfo.primaryDataStore.Path;
+                    }
+                }
+            }
+            if (configurationDataRoot == null)
+            {
+                errMsg =  vmName + ": Missing folder PrimaryDataStore for  ROOT disk";
+                logger.Debug(errMsg);
+                throw new ArgumentException(errMsg);
+            }
             // Create vm carcase
             logger.DebugFormat("Going ahead with create VM {0}, {1} vcpus, {2}MB RAM", vmName, vcpus, memSize);
-            var newVm = CreateVM(vmName, memSize, vcpus);
+            var newVm = CreateVM(vmName, memSize, vcpus, configurationDataRoot);
 
             // Add a SCSI controller for attaching/detaching data volumes.
             AddScsiController(newVm);
@@ -319,7 +338,7 @@ namespace HypervResource
                         logger.Error(errMsg);
                         throw new ArgumentException(errMsg);
                     }
-                    errMsg = vmName + ": Missing folder PrimaryDataStore for disk " + diskDrive.ToString() + ", missing path: " +  volInfo.primaryDataStore.Path;
+                    errMsg = vmName + ": Missing folder PrimaryDataStore for disk " + diskDrive.ToString() + ", missing path: " + volInfo.primaryDataStore.Path;
                     if (!Directory.Exists(volInfo.primaryDataStore.Path))
                     {
                         logger.Error(errMsg);
@@ -488,7 +507,7 @@ namespace HypervResource
             }
 
             // Adding vm to cluster, if cluster is present on node
-            logger.DebugFormat("Adding VM {0} to cluster", vmName);
+            logger.DebugFormat("Adding HA Enabled VM {0} to cluster", vmName);
             AddVmToCluster(vmName, haEnabled);
 
             logger.DebugFormat("Starting VM {0}", vmName);
@@ -1289,8 +1308,6 @@ namespace HypervResource
             VirtualSystemMigrationSettingData migrationSettingData = VirtualSystemMigrationSettingData.CreateInstance();
             VirtualSystemMigrationService service = GetVirtualisationSystemMigrationService();
 
-            IPAddress addr = IPAddress.Parse(destination);
-            IPHostEntry entry = Dns.GetHostEntry(addr);
             string[] destinationHost = new string[] { destination };
 
             migrationSettingData.LateBoundObject["MigrationType"] = MigrationType.VirtualSystem;
@@ -1299,7 +1316,7 @@ namespace HypervResource
             string migrationSettings = migrationSettingData.LateBoundObject.GetText(System.Management.TextFormat.CimDtd20);
 
             ManagementPath jobPath;
-            var ret_val = service.MigrateVirtualSystemToHost(vm.Path, entry.HostName, migrationSettings, null, null, out jobPath);
+            var ret_val = service.MigrateVirtualSystemToHost(vm.Path, GetHostNameWithoutDomain(destination), migrationSettings, null, null, out jobPath);
             if (ret_val == ReturnCode.Started)
             {
                 MigrationJobCompleted(jobPath);
@@ -1404,8 +1421,6 @@ namespace HypervResource
                 }
             }
 
-            IPAddress addr = IPAddress.Parse(destination);
-            IPHostEntry entry = Dns.GetHostEntry(addr);
             string[] destinationHost = new string[] { destination };
 
             migrationSettingData.LateBoundObject["MigrationType"] = MigrationType.VirtualSystemAndStorage;
@@ -1414,7 +1429,7 @@ namespace HypervResource
             string migrationSettings = migrationSettingData.LateBoundObject.GetText(System.Management.TextFormat.CimDtd20);
 
             ManagementPath jobPath;
-            var ret_val = service.MigrateVirtualSystemToHost(vm.Path, entry.HostName, migrationSettings, rasds, null, out jobPath);
+            var ret_val = service.MigrateVirtualSystemToHost(vm.Path, GetHostNameWithoutDomain(destination), migrationSettings, rasds, null, out jobPath);
             if (ret_val == ReturnCode.Started)
             {
                 MigrationJobCompleted(jobPath);
@@ -1999,7 +2014,7 @@ namespace HypervResource
             return true;
         }
 
-        private static ComputerSystem CreateDefaultVm(VirtualSystemManagementService vmMgmtSvc, string name)
+        private static ComputerSystem CreateDefaultVm(VirtualSystemManagementService vmMgmtSvc, string name, string configurationDataRoot)
         {
             // Tweak default settings by basing new VM on default global setting object 
             // with designed display name.
@@ -2010,6 +2025,7 @@ namespace HypervResource
             vs_gs_data.LateBoundObject["AutomaticStartupAction"] = startupAction.ToString();
             vs_gs_data.LateBoundObject["AutomaticShutdownAction"] = stopAction.ToString();
             vs_gs_data.LateBoundObject["Notes"] = new string[] { "CloudStack creating VM, do not edit. \n" };
+            vs_gs_data.LateBoundObject["ConfigurationDataRoot"] = configurationDataRoot;
 
             System.Management.ManagementPath jobPath;
             System.Management.ManagementPath defined_sys;
@@ -2751,17 +2767,10 @@ namespace HypervResource
 
         private void AddVmToCluster(string vm, bool haEnabled)
         {
-            if (IsClusterPresent())
+            if (IsClusterPresent() && haEnabled)
             {
                 GetCluster().AddVirtualMachine(vm);
-                if (haEnabled)
-                {
-                    SetFailoverParameters(vm, 6, 120);
-                }
-                else
-                {
-                    SetFailoverParameters(vm, 1, 0);
-                }
+                SetFailoverParameters(vm, 6, 120);
             }
         }
 
@@ -2769,11 +2778,15 @@ namespace HypervResource
         {
             if (IsClusterPresent())
             {
-                GetResourceGroup(vm).DestroyGroup(0);
+                var resGroup = GetResourceGroup(vm);
+                if (resGroup != null)
+                {
+                    resGroup.DestroyGroup(0);
+                }
             }
         }
 
-        private bool IsClusterPresent()
+        public bool IsClusterPresent()
         {
             SelectQuery selectQuery = new SelectQuery("MSCluster_Cluster");
             ManagementObjectSearcher searcher = new ManagementObjectSearcher(GetClusterManagementScope(), selectQuery);
@@ -2781,6 +2794,46 @@ namespace HypervResource
             var objects = searcher.Get();
 
             return (objects.Count != 1) ? false : true;
+        }
+
+        public bool IsHostAlive(string host)
+        {
+            try
+            {
+                var wmiQuery = String.Format("Name=\"{0}\"", GetHostNameWithoutDomain(host));
+                var nodes = Node.GetInstances(wmiQuery);
+                var node = nodes.OfType<Node>().First();
+
+                switch (node.State)
+                {
+                    case Node.StateValues.Up:
+                    case Node.StateValues.Paused:
+                    case Node.StateValues.Unknown0:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception e)
+            {
+                logger.Info("Failed to determine state of node: " + host + " Error: " + e.Message);
+            }
+            return true;
+        }
+
+        private string GetHostNameWithoutDomain(string host)
+        {
+            IPAddress addr = IPAddress.Parse(host);
+            IPHostEntry entry = Dns.GetHostEntry(addr);
+            string hostName = entry.HostName;
+            if (hostName.IndexOf('.') > 0)
+            {
+                return hostName.Substring(0, hostName.IndexOf('.'));
+            }
+            else
+            {
+                return host;
+            }
         }
 
         private void SetFailoverParameters(string vmResourceGroup, uint failoverPeriod, uint failoverThreshold)
@@ -2796,7 +2849,15 @@ namespace HypervResource
         {
             var wmiQuery = String.Format("Name=\"{0}\"", groupName);
             var resGroups = ResourceGroup.GetInstances(wmiQuery);
-            return resGroups.OfType<ResourceGroup>().First();
+
+            if (resGroups.Count > 0)
+            {
+                return resGroups.OfType<ResourceGroup>().First();
+            }
+            else
+            {
+                return null;
+            }
         }
 
         private Resource GetResource(string resourceName)
@@ -3154,10 +3215,10 @@ namespace HypervResource
                 case Enabled: result = "PowerOn"; break;
                 case Disabled: result = "PowerOff"; break;
                 case Paused: result = "PowerUnknown"; break;
-                case Suspended: result = "PowerUnknown"; break;
+                case Suspended: result = "PowerOff"; break;
                 case Starting: result = "PowerOn"; break;
                 case Snapshotting: result = "PowerUnknown"; break; // NOT used
-                case Saving: result = "PowerOn"; break;
+                case Saving: result = "PowerOff"; break;
                 case Stopping: result = "PowerOff"; break;
                 case Pausing: result = "PowerUnknown"; break;
                 case Resuming: result = "PowerOn"; break;
