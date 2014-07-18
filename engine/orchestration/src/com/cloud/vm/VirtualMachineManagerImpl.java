@@ -86,6 +86,7 @@ import com.cloud.agent.api.ClusterVMMetaDataSyncCommand;
 import com.cloud.agent.api.Command;
 import com.cloud.agent.api.MigrateAnswer;
 import com.cloud.agent.api.MigrateCommand;
+import com.cloud.agent.api.MigrateCompleteCommand;
 import com.cloud.agent.api.PingRoutingCommand;
 import com.cloud.agent.api.PlugNicAnswer;
 import com.cloud.agent.api.PlugNicCommand;
@@ -1918,6 +1919,22 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                 if (!ma.getResult()) {
                     throw new CloudRuntimeException("Unable to migrate due to " + ma.getDetails());
                 }
+                try {
+                    if (dest.getHost().getHypervisorType() == HypervisorType.Hyperv) {
+                        MigrateCompleteCommand mcc = new MigrateCompleteCommand(to, ExecuteInSequence.value());
+                        Answer answer = _agentMgr.send(dstHostId, mcc);
+                        if (answer == null || !answer.getResult()) {
+                            s_logger.error("HA may not work for vm: " + vm + " on destination host: " + dstHostId);
+                            _alertMgr.sendAlert(alertType, dest.getHost().getDataCenterId(), dest.getHost().getPodId(), "HA may not work for vm: " + vm + " on destination host: "
+                                    + dstHostId, null);
+                        }
+                    }
+                } catch (Exception e) {
+                    s_logger.error("HA may not work for vm: " + vm + " on destination host: " + dstHostId);
+                    _alertMgr.sendAlert(alertType, dest.getHost().getDataCenterId(), dest.getHost().getPodId(), "HA may not work for vm: " + vm + " on destination host: "
+                            + dstHostId, null);
+                }
+
             } catch (OperationTimedoutException e) {
                 if (e.isActive()) {
                     s_logger.warn("Active migration command so scheduling a restart for " + vm);
@@ -3898,6 +3915,21 @@ public class VirtualMachineManagerImpl extends ManagerBase implements VirtualMac
                 if (!ma.getResult()) {
                     s_logger.error("Unable to migrate due to " + ma.getDetails());
                     throw new CloudRuntimeException("Unable to migrate due to " + ma.getDetails());
+                }
+                try {
+                    if (dest.getHost().getHypervisorType() == HypervisorType.Hyperv) {
+                        MigrateCompleteCommand mcc = new MigrateCompleteCommand(to, ExecuteInSequence.value());
+                        Answer answer = _agentMgr.send(dstHostId, mcc);
+                        if (answer == null || !answer.getResult()) {
+                            s_logger.error("HA may not work for vm: " + vm + " on destination host: " + dstHostId);
+                            _alertMgr.sendAlert(alertType, dest.getHost().getDataCenterId(), dest.getHost().getPodId(), "HA may not work for vm: " + vm + " on destination host: "
+                                    + dstHostId, null);
+                        }
+                    }
+                } catch (Exception e) {
+                    s_logger.error("HA may not work for vm: " + vm + " on destination host: " + dstHostId);
+                    _alertMgr.sendAlert(alertType, dest.getHost().getDataCenterId(), dest.getHost().getPodId(), "HA may not work for vm: " + vm + " on destination host: "
+                            + dstHostId, null);
                 }
             } catch (OperationTimedoutException e) {
                 if (e.isActive()) {

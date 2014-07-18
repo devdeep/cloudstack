@@ -1529,6 +1529,10 @@
                                     id: "SMB",
                                     description: "SMB/CIFS"
                                 });
+                                items.push({
+                                    id: "PreSetup",
+                                    description: "PreSetup"
+                                });
                             	args.response.success({
                                     data: items
                                 });
