@@ -77,5 +77,8 @@ namespace HypervResource
         string FindClusterSharedVolume(string volumeName);
         bool IsHostAlive(string host);
         bool IsClusterPresent();
+        void AddVmToCluster(string vm, bool haEnabled);
+        void RemoveVmFromCluster(string vm);
+        void EnableVm(string vmName);
     }
 }

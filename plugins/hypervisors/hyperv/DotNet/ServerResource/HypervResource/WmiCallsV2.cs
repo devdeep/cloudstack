@@ -1315,22 +1315,39 @@ namespace HypervResource
             migrationSettingData.LateBoundObject["DestinationIPAddressList"] = destinationHost;
             string migrationSettings = migrationSettingData.LateBoundObject.GetText(System.Management.TextFormat.CimDtd20);
 
-            ManagementPath jobPath;
-            var ret_val = service.MigrateVirtualSystemToHost(vm.Path, GetHostNameWithoutDomain(destination), migrationSettings, null, null, out jobPath);
-            if (ret_val == ReturnCode.Started)
+            // to support vm migration across cluster remove vm from cluster before migration and then add to cluster on other host
+            string host = GetHostNameWithoutDomain(destination);
+            bool vmPartOfCluster = GetResourceGroup(vmName) != null ? true : false;
+            if (vmPartOfCluster && GetNode(host) == null)
             {
-                MigrationJobCompleted(jobPath);
+                RemoveVmFromCluster(vmName);
             }
-            else if (ret_val != ReturnCode.Completed)
+
+            try
             {
-                var errMsg = string.Format(
-                    "Failed migrating VM {0} (GUID {1}) due to {2}",
-                    vm.ElementName,
-                    vm.Name,
-                    ReturnCode.ToString(ret_val));
-                var ex = new WmiException(errMsg);
-                logger.Error(errMsg, ex);
-                throw ex;
+                ManagementPath jobPath;
+                var ret_val = service.MigrateVirtualSystemToHost(vm.Path, host, migrationSettings, null, null, out jobPath);
+                if (ret_val == ReturnCode.Started)
+                {
+                    MigrationJobCompleted(jobPath);
+                }
+                else if (ret_val != ReturnCode.Completed)
+                {
+                    var errMsg = string.Format(
+                        "Failed migrating VM {0} (GUID {1}) due to {2}",
+                        vm.ElementName,
+                        vm.Name,
+                        ReturnCode.ToString(ret_val));
+                    var ex = new WmiException(errMsg);
+                    logger.Error(errMsg, ex);
+                    throw ex;
+                }
+            }
+            catch (Exception e)
+            {
+                AddVmToCluster(vmName, vmPartOfCluster);
+                EnableVm(vmName);
+                throw e;
             }
         }
 
@@ -1428,23 +1445,49 @@ namespace HypervResource
             migrationSettingData.LateBoundObject["DestinationIPAddressList"] = destinationHost;
             string migrationSettings = migrationSettingData.LateBoundObject.GetText(System.Management.TextFormat.CimDtd20);
 
-            ManagementPath jobPath;
-            var ret_val = service.MigrateVirtualSystemToHost(vm.Path, GetHostNameWithoutDomain(destination), migrationSettings, rasds, null, out jobPath);
-            if (ret_val == ReturnCode.Started)
+            // to support vm migration across cluster remove vm from cluster before migration and then add to cluster on other host
+            string host = GetHostNameWithoutDomain(destination);
+            bool vmPartOfCluster = GetResourceGroup(vmName) != null ? true : false;
+            if (vmPartOfCluster && GetNode(host) == null)
             {
-                MigrationJobCompleted(jobPath);
+                RemoveVmFromCluster(vmName);
             }
-            else if (ret_val != ReturnCode.Completed)
+
+            ManagementPath jobPath;
+            try
             {
-                var errMsg = string.Format(
-                    "Failed migrating VM {0} and its volumes to destination {1} (GUID {2}) due to {3}",
-                    vm.ElementName,
-                    destination,
-                    vm.Name,
-                    ReturnCode.ToString(ret_val));
-                var ex = new WmiException(errMsg);
-                logger.Error(errMsg, ex);
-                throw ex;
+                var ret_val = service.MigrateVirtualSystemToHost(vm.Path, host, migrationSettings, rasds, null, out jobPath);
+                if (ret_val == ReturnCode.Started)
+                {
+                    MigrationJobCompleted(jobPath);
+                }
+                else if (ret_val != ReturnCode.Completed)
+                {
+                    var errMsg = string.Format(
+                        "Failed migrating VM {0} and its volumes to destination {1} (GUID {2}) due to {3}",
+                        vm.ElementName,
+                        destination,
+                        vm.Name,
+                        ReturnCode.ToString(ret_val));
+                    var ex = new WmiException(errMsg);
+                    logger.Error(errMsg, ex);
+                    throw ex;
+                }
+            }
+            catch (Exception e)
+            {
+                AddVmToCluster(vmName, vmPartOfCluster);
+                EnableVm(vmName);
+                throw e;
+            }
+        }
+
+        public void EnableVm(string vmName)
+        {
+            var vm = GetComputerSystem(vmName);
+            if (vm.EnabledState != EnabledState.Enabled)
+            {
+                SetState(vm, RequiredState.Enabled);
             }
         }
 
@@ -2765,16 +2808,16 @@ namespace HypervResource
             return null;
         }
 
-        private void AddVmToCluster(string vm, bool haEnabled)
+        public void AddVmToCluster(string vm, bool haEnabled)
         {
-            if (IsClusterPresent() && haEnabled)
+            if (haEnabled && IsClusterPresent() && GetResourceGroup(vm) == null)
             {
                 GetCluster().AddVirtualMachine(vm);
                 SetFailoverParameters(vm, 6, 120);
             }
         }
 
-        private void RemoveVmFromCluster(string vm)
+        public void RemoveVmFromCluster(string vm)
         {
             if (IsClusterPresent())
             {
@@ -2800,25 +2843,39 @@ namespace HypervResource
         {
             try
             {
-                var wmiQuery = String.Format("Name=\"{0}\"", GetHostNameWithoutDomain(host));
-                var nodes = Node.GetInstances(wmiQuery);
-                var node = nodes.OfType<Node>().First();
-
-                switch (node.State)
+                var node = GetNode(GetHostNameWithoutDomain(host));
+                if (node != null)
                 {
-                    case Node.StateValues.Up:
-                    case Node.StateValues.Paused:
-                    case Node.StateValues.Unknown0:
-                        return true;
-                    default:
-                        return false;
+                    switch (node.State)
+                    {
+                        case Node.StateValues.Up:
+                        case Node.StateValues.Paused:
+                        case Node.StateValues.Unknown0:
+                            return true;
+                        default:
+                            return false;
+                    }
                 }
             }
             catch (Exception e)
             {
                 logger.Info("Failed to determine state of node: " + host + " Error: " + e.Message);
             }
-            return true;
+            return false;
+        }
+
+        private Node GetNode(string host)
+        {
+            var wmiQuery = String.Format("Name=\"{0}\"", host);
+            var nodes = Node.GetInstances(wmiQuery);
+            if (nodes.Count == 1)
+            {
+                return nodes.OfType<Node>().First();
+            }
+            else
+            {
+                return null;
+            }
         }
 
         private string GetHostNameWithoutDomain(string host)
@@ -2912,7 +2969,7 @@ namespace HypervResource
             var objects = searcher.Get();
             if (objects.Count != 1)
             {
-                ThrowWMIException("Specified disk resource either does not exist or is not unique");
+                ThrowWMIException(string.Format("Specified disk resource {0} either does not exist or is not unique", resourceName));
             }
 
             foreach (var csvToRes in objects)
@@ -2924,7 +2981,7 @@ namespace HypervResource
                 return csvName;
             }
 
-            ThrowWMIException("Specified disk resource does not exist");
+            ThrowWMIException(string.Format("Specified disk resource {0} does not exist", resourceName));
             return null;
         }
 
@@ -2938,7 +2995,7 @@ namespace HypervResource
             var objects = searcher.Get();
             if (objects.Count != 1)
             {
-                ThrowWMIException("Specified CSV either does not exist or is not unique");
+                ThrowWMIException(string.Format("Specified CSV {0} either does not exist or is not unique", volumePath));
             }
 
             string resourceName = null;

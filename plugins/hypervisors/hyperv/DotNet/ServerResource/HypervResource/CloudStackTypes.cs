@@ -767,6 +767,20 @@ namespace HypervResource
         }
     }
 
+    public class Pair
+    {
+        [JsonProperty("u")]
+        public dynamic u;
+        [JsonProperty("t")]
+        public dynamic t;
+
+        public Pair(dynamic t, dynamic u)
+        {
+            this.u = u;
+            this.t = t;
+        }
+    }
+
     /// <summary>
     /// Fully qualified named for a number of types used in CloudStack.  Used to specify the intended type for JSON serialised objects. 
     /// </summary>
@@ -833,8 +847,12 @@ namespace HypervResource
         public const string ManageSnapshotCommand = "com.cloud.agent.api.ManageSnapshotCommand";
         public const string MigrateAnswer = "com.cloud.agent.api.MigrateAnswer";
         public const string MigrateCommand = "com.cloud.agent.api.MigrateCommand";
+        public const string MigrateCompleteCommand = "com.cloud.agent.api.MigrateCompleteCommand";
         public const string MigrateWithStorageAnswer = "com.cloud.agent.api.MigrateWithStorageAnswer";
         public const string MigrateWithStorageCommand = "com.cloud.agent.api.MigrateWithStorageCommand";
+        public const string MigrateWithStorageGetDestPathsCommand = "com.cloud.agent.api.MigrateWithStorageGetDestPathsCommand";
+        public const string MigrateWithStorageGetDestPathsAnswer = "com.cloud.agent.api.MigrateWithStorageGetDestPathsAnswer";
+        public const string MigrateWithStorageDestPathsCommand = "com.cloud.agent.api.MigrateWithStorageDestPathsCommand";
         public const string ModifySshKeysCommand = "com.cloud.agent.api.ModifySshKeysCommand";
         public const string ModifyStoragePoolAnswer = "com.cloud.agent.api.ModifyStoragePoolAnswer";
         public const string ModifyStoragePoolCommand = "com.cloud.agent.api.ModifyStoragePoolCommand";

@@ -2176,6 +2176,44 @@ namespace HypervResource
             }
         }
 
+        // POST api/HypervResource/MigrateCompleteCommand
+        [HttpPost]
+        [ActionName(CloudStackTypes.MigrateCompleteCommand)]
+        public JContainer MigrateCompleteCommand([FromBody]dynamic cmd)
+        {
+            using (log4net.NDC.Push(Guid.NewGuid().ToString()))
+            {
+                logger.Info(CloudStackTypes.MigrateCompleteCommand + Utils.CleanString(cmd.ToString()));
+
+                string details = null;
+                bool result = false;
+
+                try
+                {
+                    string vm = (string)cmd.vm.name;
+                    bool haEnabled = (bool)cmd.vm.enableHA;
+                    wmiCallsV2.AddVmToCluster(vm, haEnabled);
+                    wmiCallsV2.EnableVm(vm);
+
+                    result = true;
+                }
+                catch (Exception sysEx)
+                {
+                    details = CloudStackTypes.MigrateCompleteCommand + " failed due to " + sysEx.Message;
+                    logger.Error(details, sysEx);
+                }
+
+                object ansContent = new
+                {
+                    result = result,
+                    details = details,
+                    contextMap = contextMap
+                };
+
+                return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.Answer);
+            }
+        }
+
         // POST api/HypervResource/MigrateVolumeCommand
         [HttpPost]
         [ActionName(CloudStackTypes.MigrateVolumeCommand)]
@@ -2245,6 +2283,95 @@ namespace HypervResource
                 catch (Exception sysEx)
                 {
                     details = CloudStackTypes.MigrateWithStorageCommand + " failed due to " + sysEx.Message;
+                    logger.Error(details, sysEx);
+                }
+
+                object ansContent = new
+                {
+                    result = result,
+                    volumeTos = JArray.FromObject(volumeTos),
+                    details = details,
+                    contextMap = contextMap
+                };
+
+                return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.MigrateWithStorageAnswer);
+            }
+        }
+
+        // POST api/HypervResource/MigrateWithStorageGetDestPathsCommand
+        [HttpPost]
+        [ActionName(CloudStackTypes.MigrateWithStorageGetDestPathsCommand)]
+        public JContainer MigrateWithStorageGetDestPathsCommand([FromBody]dynamic cmd)
+        {
+            using (log4net.NDC.Push(Guid.NewGuid().ToString()))
+            {
+                logger.Info(CloudStackTypes.MigrateWithStorageGetDestPathsCommand + Utils.CleanString(cmd.ToString()));
+
+                string details = null;
+                bool result = false;
+                var volumeToDestPathsAsList = new List<Pair>();
+
+                try
+                {
+                    var volumeToPoolList = cmd.volumeToFilerAsList;
+                    foreach (var item in volumeToPoolList)
+                    {
+                        string poolPath = GetStoragePoolPath(item.u);
+                        volumeToDestPathsAsList.Add(new Pair(item.t, poolPath));
+                    }
+
+                    result = true;
+                }
+                catch (Exception sysEx)
+                {
+                    details = CloudStackTypes.MigrateWithStorageGetDestPathsCommand + " failed due to " + sysEx.Message;
+                    logger.Error(details, sysEx);
+                }
+
+                object ansContent = new
+                {
+                    result = result,
+                    volumeToDestPathsAsList = volumeToDestPathsAsList,
+                    details = details,
+                    contextMap = contextMap
+                };
+
+                return ReturnCloudStackTypedJArray(ansContent, CloudStackTypes.MigrateWithStorageGetDestPathsAnswer);
+            }
+        }
+
+        // POST api/HypervResource/MigrateWithStorageDestPathsCommand
+        [HttpPost]
+        [ActionName(CloudStackTypes.MigrateWithStorageDestPathsCommand)]
+        public JContainer MigrateWithStorageDestPathsCommand([FromBody]dynamic cmd)
+        {
+            using (log4net.NDC.Push(Guid.NewGuid().ToString()))
+            {
+                logger.Info(CloudStackTypes.MigrateWithStorageDestPathsCommand + Utils.CleanString(cmd.ToString()));
+
+                string details = null;
+                bool result = false;
+                List<dynamic> volumeTos = new List<dynamic>();
+
+                try
+                {
+                    string vm = (string)cmd.vm.name;
+                    string destination = (string)cmd.tgtHost;
+                    var volumeToPoolList = cmd.volumeToDestPathsAsList;
+                    var volumeToPool = new Dictionary<string, string>();
+                    foreach (var item in volumeToPoolList)
+                    {
+                        volumeTos.Add(item.t);
+                        string poolPath = (string)item.u;
+                        volumeToPool.Add((string)item.t.path, poolPath);
+                    }
+
+                    wmiCallsV2.MigrateVmWithVolume(vm, destination, volumeToPool);
+                    result = true;
+                }
+                catch (Exception sysEx)
+                {
+                    details = CloudStackTypes.MigrateWithStorageDestPathsCommand + " failed due to " + sysEx.Message;
                     logger.Error(details, sysEx);
                 }
 
