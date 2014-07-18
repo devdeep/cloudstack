@@ -176,14 +176,12 @@ public class HypervStorageMotionStrategy implements DataMotionStrategy {
             }
 
             try {
-                if (destHost.getHypervisorType() == HypervisorType.Hyperv) {
-                    MigrateCompleteCommand mcc = new MigrateCompleteCommand(to, true);
-                    Answer migrateCompleteAnswer = agentMgr.send(destHost.getId(), mcc);
-                    if (migrateCompleteAnswer == null || !migrateCompleteAnswer.getResult()) {
-                        s_logger.error("HA may not work for vm: " + vm + " on destination host: " + destHost.getId());
-                        alertMgr.sendAlert(alertType, destHost.getDataCenterId(), destHost.getPodId(), "HA may not work for vm: " + vm + " on destination host: "
-                                + destHost.getId(), null);
-                    }
+                MigrateCompleteCommand mcc = new MigrateCompleteCommand(to, true);
+                Answer migrateCompleteAnswer = agentMgr.send(destHost.getId(), mcc);
+                if (migrateCompleteAnswer == null || !migrateCompleteAnswer.getResult()) {
+                    s_logger.error("HA may not work for vm: " + vm + " on destination host: " + destHost.getId());
+                    alertMgr.sendAlert(alertType, destHost.getDataCenterId(), destHost.getPodId(), "HA may not work for vm: " + vm + " on destination host: "
+                            + destHost.getId(), null);
                 }
             } catch (Exception e) {
                 s_logger.error("HA may not work for vm: " + vm + " on destination host: " + destHost.getId());
