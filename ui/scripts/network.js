@@ -3337,9 +3337,10 @@
                                                 
                                                 //when server-side change of adding new parameter "vmidipmap" to assignToLoadBalancerRule API is in, uncomment the following commented 4 lines. 
                                                 subselect: {
-                                                    isMultiple: true,
-                                                    label: 'label.use.vm.ips',
-                                                    dataProvider: multipleVmSecondaryIPSubselect                                                     
+                                                	label: 'label.use.vm.ips',
+                                                    //isMultiple: true,
+                                                    //dataProvider: multipleVmSecondaryIPSubselect       
+                                                    dataProvider: singleVmSecondaryIPSubselect //to enable "secondary IP in load balancing", comment this line and uncomment the 2 lines above.                                            
                                                 },
                                                                                                 
                                                 dataProvider: function(args) {
@@ -3638,33 +3639,22 @@
                                                     dataType: 'json',
                                                     async: true,
                                                     success: function(data) {
-                                                        var itemData = args.itemData;
-                                                        var jobID = data.createloadbalancerruleresponse.jobid;
+                                                    	var jobID = data.createloadbalancerruleresponse.jobid;
                                                         var lbID = data.createloadbalancerruleresponse.id;
-                                                        
-                                                        var inputData = {
-                                                        	id: data.createloadbalancerruleresponse.id	
-                                                        };    
-                                                        
-                                                        /*
+                                                         
+                                                        var selectedVMs = args.itemData;
                                                         var inputData = {
                                                             id: data.createloadbalancerruleresponse.id,
-                                                            virtualmachineids: $.map(itemData, function(elem) {
+                                                            virtualmachineids: $.map(selectedVMs, function(elem) {
                                                                 return elem.id;
                                                             }).join(',')
-                                                        }; 
-                                                        */                                                        
-                                                        //virtualmachineids parameter has been replaced with vmidipmap parameter, so comment out the 6 lines above.
-                                                        
-                                                        
-                                                        /* 
-                                                         * e.g. first VM(xxx) has two IPs(10.1.1.~), second VM(yyy) has three IPs(10.2.2.~):
-                                                         * vmidipmap[0].vmid=xxx  vmidipmap[0].vmip=10.1.1.11 
-                                                         * vmidipmap[1].vmid=xxx  vmidipmap[1].vmip=10.1.1.12 
-                                                         * vmidipmap[2].vmid=yyy  vmidipmap[2].vmip=10.2.2.77 
-                                                         * vmidipmap[3].vmid=yyy  vmidipmap[3].vmip=10.2.2.78 
-                                                         * vmidipmap[4].vmid=yyy  vmidipmap[4].vmip=10.2.2.79 
-                                                         */
+                                                        };  
+                                                        //to enable "secondary IP in load balancing", comment the section above and uncomment the section below.
+                                                                                                                
+                                                        /*
+                                                        var inputData = {
+                                                            id: data.createloadbalancerruleresponse.id  
+                                                        };                                                           
                                                         var selectedVMs = args.itemData;
                                                         if (selectedVMs != null) {
                                                         	var vmidipmapIndex = 0;
@@ -3683,7 +3673,17 @@
                                                     			}                                                			
                                                     		}
                                                     	}   
-                                                            
+                                                        */      
+                                                        
+                                                        /* 
+                                                         * e.g. first VM(xxx) has two IPs(10.1.1.~), second VM(yyy) has three IPs(10.2.2.~):
+                                                         * vmidipmap[0].vmid=xxx  vmidipmap[0].vmip=10.1.1.11 
+                                                         * vmidipmap[1].vmid=xxx  vmidipmap[1].vmip=10.1.1.12 
+                                                         * vmidipmap[2].vmid=yyy  vmidipmap[2].vmip=10.2.2.77 
+                                                         * vmidipmap[3].vmid=yyy  vmidipmap[3].vmip=10.2.2.78 
+                                                         * vmidipmap[4].vmid=yyy  vmidipmap[4].vmip=10.2.2.79 
+                                                         */                                                                                                               
+                                                                                                                    
                                                         $.ajax({
                                                             url: createURL('assignToLoadBalancerRule'),
                                                             data: inputData,                                                            
@@ -3797,9 +3797,39 @@
                                         	add: {
                                                 label: 'label.add.vms.to.lb',
                                                 action: function(args) {
+                                                	var selectedVMs = args.data;                                                    
                                                     var inputData = {
-                                                    	id: args.multiRule.id	
-                                                    }; 
+                                                        id: args.multiRule.id,
+                                                        virtualmachineids: $.map(selectedVMs, function(elem) {
+                                                            return elem.id;
+                                                        }).join(',')
+                                                    };  
+                                                    
+                                                    //to enable "secondary IP in load balancing", comment the section above and uncomment the section below.
+                                                                                                            
+                                                    /*
+                                                    var inputData = {
+                                                        id: args.multiRule.id   
+                                                    };                                                          
+                                                    var selectedVMs = args.data;
+                                                    if (selectedVMs != null) {
+                                                        var vmidipmapIndex = 0;
+                                                        for (var vmIndex = 0; vmIndex < selectedVMs.length; vmIndex++) {      
+                                                            var selectedIPs = selectedVMs[vmIndex]._subselect;
+                                                            for (var ipIndex = 0; ipIndex < selectedIPs.length; ipIndex++) {
+                                                                inputData['vmidipmap[' + vmidipmapIndex + '].vmid'] = selectedVMs[vmIndex].id;
+                                                                
+                                                                if (args.context.ipAddresses[0].isportable) {
+                                                                    inputData['vmidipmap[' + vmidipmapIndex + '].vmip'] = selectedIPs[ipIndex].split(',')[1];  
+                                                                } else {
+                                                                    inputData['vmidipmap[' + vmidipmapIndex + '].vmip'] = selectedIPs[ipIndex];
+                                                                }
+                                                                
+                                                                vmidipmapIndex++;
+                                                            }                                                           
+                                                        }
+                                                    }   
+                                                    */      
                                                     
                                                     /* 
                                                      * e.g. first VM(xxx) has two IPs(10.1.1.~), second VM(yyy) has three IPs(10.2.2.~):
@@ -3808,26 +3838,8 @@
                                                      * vmidipmap[2].vmid=yyy  vmidipmap[2].vmip=10.2.2.77 
                                                      * vmidipmap[3].vmid=yyy  vmidipmap[3].vmip=10.2.2.78 
                                                      * vmidipmap[4].vmid=yyy  vmidipmap[4].vmip=10.2.2.79 
-                                                     */
-                                                    var selectedVMs = args.data;
-                                                    if (selectedVMs != null) {
-                                                    	var vmidipmapIndex = 0;
-                                                		for (var vmIndex = 0; vmIndex < selectedVMs.length; vmIndex++) {      
-                                                			var selectedIPs = selectedVMs[vmIndex]._subselect;
-                                                			for (var ipIndex = 0; ipIndex < selectedIPs.length; ipIndex++) {
-                                                				inputData['vmidipmap[' + vmidipmapIndex + '].vmid'] = selectedVMs[vmIndex].id;
-                                                    			
-                                                				if (args.context.ipAddresses[0].isportable) {
-                                                    			    inputData['vmidipmap[' + vmidipmapIndex + '].vmip'] = selectedIPs[ipIndex].split(',')[1];  
-                                                    			} else {
-                                                    				inputData['vmidipmap[' + vmidipmapIndex + '].vmip'] = selectedIPs[ipIndex];
-                                                    			}
-                                                				
-                                                				vmidipmapIndex++;
-                                                			}                                                			
-                                                		}
-                                                	}   
-                                                	
+                                                     */  
+                                                    
                                                     $.ajax({
                                                         url: createURL('assignToLoadBalancerRule'),
                                                         data: inputData,
