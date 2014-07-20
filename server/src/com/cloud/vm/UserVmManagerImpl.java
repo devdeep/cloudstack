@@ -35,6 +35,7 @@ import javax.ejb.Local;
 import javax.inject.Inject;
 import javax.naming.ConfigurationException;
 
+import com.cloud.server.ManagementService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 
@@ -243,7 +244,6 @@ import com.cloud.utils.DateUtil;
 import com.cloud.utils.Journal;
 import com.cloud.utils.NumbersUtil;
 import com.cloud.utils.Pair;
-import com.cloud.utils.PasswordGenerator;
 import com.cloud.utils.component.ManagerBase;
 import com.cloud.utils.concurrency.NamedThreadFactory;
 import com.cloud.utils.crypt.RSAHelper;
@@ -482,6 +482,9 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
     @Inject
     VolumeOrchestrationService volumeMgr;
 
+    @Inject
+    ManagementService _mgr;
+
     @Override
     public UserVmVO getVirtualMachine(long vmId) {
         return _vmDao.findById(vmId);
@@ -643,7 +646,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         String password = null;
         String sshPublicKey = s.getPublicKey();
         if (template != null && template.getEnablePassword()) {
-            password = generateRandomPassword();
+            password = _mgr.generateRandomPassword();
         }
 
         boolean result = resetVMSSHKeyInternal(vmId, sshPublicKey, password);
@@ -3362,10 +3365,6 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         }
     }
 
-    public String generateRandomPassword() {
-        return PasswordGenerator.generateRandomPassword(6);
-    }
-
     @Override
     public Pair<UserVmVO, Map<VirtualMachineProfile.Param, Object>> startVirtualMachine(long vmId, Long hostId, Map<VirtualMachineProfile.Param, Object> additionalParams, String deploymentPlannerToUse)
             throws ConcurrentOperationException, ResourceUnavailableException, InsufficientCapacityException {
@@ -3443,7 +3442,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
                 if (vm.getDetail("password") != null) {
                     password = DBEncryptionUtil.decrypt(vm.getDetail("password"));
                  } else {
-                    password = generateRandomPassword();
+                    password = _mgr.generateRandomPassword();
                  }
             }
 
@@ -4733,7 +4732,7 @@ public class UserVmManagerImpl extends ManagerBase implements UserVmManager, Vir
         String password = null;
 
         if (template.getEnablePassword()) {
-            password = generateRandomPassword();
+            password = _mgr.generateRandomPassword();
             boolean result = resetVMPasswordInternal(vmId, password);
             if (result) {
                 vm.setPassword(password);
