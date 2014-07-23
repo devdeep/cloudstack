@@ -1,4 +1,4 @@
-// Licensed to the Apache Software Foundation (ASF) under one
+﻿// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -2073,7 +2073,7 @@ namespace HypervResource
             // Is there a template we can use to fill in the settings?
             var newVirtHDSettings = VirtualHardDiskSettingData.CreateInstance();
             newVirtHDSettings.LateBoundObject["Type"] = 3; // Dynamic
-            newVirtHDSettings.LateBoundObject["Format"] = 3; // VHDX
+            newVirtHDSettings.LateBoundObject["Format"] = 2; // VHD
             newVirtHDSettings.LateBoundObject["Path"] = Path;
             newVirtHDSettings.LateBoundObject["MaxInternalSize"] = MaxInternalSize;
             newVirtHDSettings.LateBoundObject["BlockSize"] = 0; // Use defaults
