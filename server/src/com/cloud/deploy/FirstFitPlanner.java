@@ -14,6 +14,7 @@
 // KIND, either express or implied.  See the License for the
 // specific language governing permissions and limitations
 // under the License.
+
 package com.cloud.deploy;
 
 import java.util.ArrayList;
@@ -324,12 +325,22 @@ public class FirstFitPlanner extends PlannerBase implements DeploymentClusterPla
             if (clusterListForVmAllocation == null || clusterListForVmAllocation.size() == 0) {
                 return;
             }
-            if (capacity == Capacity.CAPACITY_TYPE_CPU) {
-                clustersCrossingThreshold =
-                    _capacityDao.listClustersCrossingThreshold(capacity, plan.getDataCenterId(), ClusterCPUCapacityDisableThreshold.key(), cpu_requested);
-            } else if (capacity == Capacity.CAPACITY_TYPE_MEMORY) {
-                clustersCrossingThreshold =
-                    _capacityDao.listClustersCrossingThreshold(capacity, plan.getDataCenterId(), ClusterMemoryCapacityDisableThreshold.key(), ram_requested);
+
+            Boolean isThresholdEnabled = ClusterThresholdEnabled.value();
+            if (isThresholdEnabled) {
+                if (capacity == Capacity.CAPACITY_TYPE_CPU) {
+                    clustersCrossingThreshold =
+                            _capacityDao.listClustersCrossingThreshold(capacity, plan.getDataCenterId(), ClusterCPUCapacityDisableThreshold.key(), cpu_requested);
+                } else if (capacity == Capacity.CAPACITY_TYPE_MEMORY) {
+                    clustersCrossingThreshold =
+                            _capacityDao.listClustersCrossingThreshold(capacity, plan.getDataCenterId(), ClusterMemoryCapacityDisableThreshold.key(), ram_requested);
+                }
+            } else {
+                VirtualMachine vm = vmProfile.getVirtualMachine();
+                Map<String, String> details = vm.getDetails();
+                if (details != null && details.containsKey("deployvm")) {
+                    String keyStr = ClusterCPUCapacityDisableThreshold.key();
+                }
             }
 
             if (clustersCrossingThreshold != null && clustersCrossingThreshold.size() != 0) {
@@ -572,6 +583,6 @@ public class FirstFitPlanner extends PlannerBase implements DeploymentClusterPla
 
     @Override
     public ConfigKey<?>[] getConfigKeys() {
-        return new ConfigKey<?>[] {ClusterCPUCapacityDisableThreshold, ClusterMemoryCapacityDisableThreshold};
+        return new ConfigKey<?>[] {ClusterCPUCapacityDisableThreshold, ClusterMemoryCapacityDisableThreshold, ClusterThresholdEnabled};
     }
 }
